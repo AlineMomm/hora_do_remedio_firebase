@@ -51,13 +51,12 @@ class SyncService {
     await prefs.setBool(_syncEnabledKey, enabled);
   }
 
-  // Salvar ID do usuário local
   Future<void> setLocalUserId(String userId) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_localUserIdKey, userId);
+    print('✅ ID local salvo: $userId');
   }
 
-  // Pegar ID do usuário local
   Future<String?> getLocalUserId() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getString(_localUserIdKey);
@@ -105,26 +104,43 @@ class SyncService {
     }
   }
 
-  // NOVO: Migrar medicamentos locais para o usuário da nuvem
+  // MODIFICADO: Migrar medicamentos locais para o usuário da nuvem
   Future<void> _migrateLocalMedicationsToCloud(String cloudUserId) async {
     try {
-      // Pegar o ID do usuário local
       final localUserId = await getLocalUserId();
       
-      if (localUserId != null && localUserId != cloudUserId) {
-        print('🔄 Migrando medicamentos locais para o usuário da nuvem...');
+      print('🔍 Verificando migração: localUserId=$localUserId, cloudUserId=$cloudUserId');
+      
+      if (localUserId == null) {
+        print('⚠️ Nenhum ID local encontrado');
+        return;
+      }
+      
+      if (localUserId == cloudUserId) {
+        print('📌 IDs iguais, não precisa migrar');
+        return;
+      }
+      
+      print('🔄 Migrando medicamentos locais do usuário $localUserId para $cloudUserId...');
+      
+      // Carregar medicamentos do usuário local
+      final localMeds = await _medicationService.getMedicationsList(localUserId);
+      
+      if (localMeds.isNotEmpty) {
+        print('📦 Encontrados ${localMeds.length} medicamentos locais para migrar');
         
-        // Carregar medicamentos do usuário local
-        final localMeds = await _medicationService.getMedicationsList(localUserId);
+        // Carregar medicamentos existentes na nuvem para evitar duplicatas
+        final cloudMeds = await _firebaseService.loadMedicationsFromCloud(cloudUserId);
+        final cloudMedIds = cloudMeds.map((m) => m.id).toSet();
         
-        if (localMeds.isNotEmpty) {
-          print('📦 Encontrados ${localMeds.length} medicamentos locais para migrar');
-          
-          // Recriar medicamentos com o novo userId
-          for (var med in localMeds) {
+        int migrados = 0;
+        for (var med in localMeds) {
+          // Só migrar se não existir na nuvem
+          if (!cloudMedIds.contains(med.id)) {
+            print('   Migrando: ${med.name} (ID: ${med.id})');
             final newMed = MedicationModel(
-              id: med.id, // Manter o mesmo ID
-              userId: cloudUserId, // Atualizar para o userId da nuvem
+              id: med.id,
+              userId: cloudUserId,
               name: med.name,
               hour: med.hour,
               minute: med.minute,
@@ -133,58 +149,81 @@ class SyncService {
               createdAt: med.createdAt,
             );
             await _medicationService.addMedication(newMed);
+            migrados++;
+          } else {
+            print('   ⏭️ Já existe na nuvem: ${med.name}');
           }
-          
-          // Sincronizar com a nuvem
+        }
+        
+        if (migrados > 0) {
+          // Sincronizar com a nuvem apenas os novos
           final allMeds = await _medicationService.getMedicationsList(cloudUserId);
           await _firebaseService.syncMedicationsToCloud(cloudUserId, allMeds);
-          
-          print('✅ Migração concluída!');
+          print('✅ Migração concluída! $migrados medicamentos migrados');
         } else {
-          print('📦 Nenhum medicamento local para migrar');
+          print('📌 Nenhum medicamento novo para migrar');
         }
+      } else {
+        print('📦 Nenhum medicamento local para migrar');
       }
     } catch (e) {
       print('❌ Erro na migração: $e');
     }
   }
 
-  // NOVO: Mesclar medicamentos da nuvem com locais
+  // MODIFICADO: Carregar da nuvem sem sobrescrever dados locais existentes
   Future<void> _mergeCloudWithLocal(String cloudUserId) async {
     try {
+      print('🔄 Mesclando dados da nuvem com locais...');
+      
       // Carregar medicamentos da nuvem
       final cloudMeds = await _firebaseService.loadMedicationsFromCloud(cloudUserId);
       
       if (cloudMeds.isNotEmpty) {
         print('📦 Carregando ${cloudMeds.length} medicamentos da nuvem');
         
-        // Salvar localmente
+        // Carregar medicamentos locais atuais
+        final localMeds = await _medicationService.getMedicationsList(cloudUserId);
+        final localMedIds = localMeds.map((m) => m.id).toSet();
+        
+        int adicionados = 0;
         for (var med in cloudMeds) {
-          await _medicationService.addMedication(med);
+          // Só adicionar se não existir localmente
+          if (!localMedIds.contains(med.id)) {
+            print('   Adicionando localmente: ${med.name}');
+            await _medicationService.addMedication(med);
+            adicionados++;
+          }
         }
+        
+        print('✅ Mesclagem concluída: $adicionados novos medicamentos adicionados');
+      } else {
+        print('📦 Nenhum medicamento na nuvem');
       }
     } catch (e) {
       print('❌ Erro ao mesclar dados: $e');
     }
   }
 
-  // MODIFICADO: Login na nuvem com migração
+  // MODIFICADO: Login na nuvem com migração e mesclagem correta
   Future<bool> loginToCloud(String email, String password) async {
     try {
       final user = await _firebaseService.signInWithEmailAndPassword(email, password);
       if (user != null) {
-        // Salvar ID do usuário local antes de trocar
         final oldLocalUserId = await getLocalUserId();
+        final oldCloudUserId = await getCloudUserId();
+        
+        print('🔑 Login: oldLocal=$oldLocalUserId, oldCloud=$oldCloudUserId, newCloud=${user.uid}');
         
         await setCloudUserId(user.uid);
         await setSyncEnabled(true);
         
-        // Se havia um usuário local diferente, migrar os dados
+        // PRIMEIRO: Migrar dados locais para a nuvem (se houver)
         if (oldLocalUserId != null && oldLocalUserId != user.uid) {
           await _migrateLocalMedicationsToCloud(user.uid);
         }
         
-        // Carregar dados da nuvem para o local
+        // DEPOIS: Carregar da nuvem (sem sobrescrever os que já existem)
         await _mergeCloudWithLocal(user.uid);
         
         return true;
@@ -201,13 +240,14 @@ class SyncService {
     try {
       final user = await _firebaseService.registerWithEmailAndPassword(name, email, password);
       if (user != null) {
-        // Salvar ID do usuário local antes de trocar
         final oldLocalUserId = await getLocalUserId();
+        
+        print('📝 Registro: oldLocal=$oldLocalUserId, newCloud=${user.uid}');
         
         await setCloudUserId(user.uid);
         await setSyncEnabled(true);
         
-        // Se havia um usuário local, migrar os dados
+        // Migrar dados locais para a nova conta
         if (oldLocalUserId != null) {
           await _migrateLocalMedicationsToCloud(user.uid);
         }
@@ -253,9 +293,17 @@ class SyncService {
 
     try {
       final cloudMeds = await _firebaseService.loadMedicationsFromCloud(userId);
+      
+      // Carregar medicamentos locais para verificar duplicatas
+      final localMeds = await _medicationService.getMedicationsList(userId);
+      final localMedIds = localMeds.map((m) => m.id).toSet();
+      
       for (var med in cloudMeds) {
-        await _medicationService.addMedication(med);
+        if (!localMedIds.contains(med.id)) {
+          await _medicationService.addMedication(med);
+        }
       }
+      
       return cloudMeds;
     } catch (e) {
       print('❌ Erro ao carregar da nuvem: $e');

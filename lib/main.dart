@@ -6,13 +6,11 @@ import 'services/firebase_service.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
-  // Inicializar Firebase com configuração específica da plataforma
   try {
     await FirebaseService.initialize();
     print('✅ Firebase inicializado com sucesso (${kIsWeb ? "Web" : "Android"})');
   } catch (e) {
     print('❌ Erro ao inicializar Firebase: $e');
-    // Mostrar erro na UI
     runApp(ErrorApp(error: e.toString()));
     return;
   }

@@ -100,41 +100,42 @@ class _SyncButtonState extends State<SyncButton> {
   }
 
   Future<void> _performSync() async {
-    setState(() {
-      _isSyncing = true;
-    });
+  setState(() {
+    _isSyncing = true;
+  });
 
-    try {
-      final cloudUserId = await _syncService.getCloudUserId();
-      if (cloudUserId != null) {
-        await _syncService.syncLocalToCloud(cloudUserId);
-        
-        if (!mounted) return;
-        
-        _showMessage(
-          'Sucesso!',
-          'Dados sincronizados com a nuvem.',
-          Icons.cloud_done,
-          isSuccess: true,
-        );
-        
-        widget.onSyncComplete();
-      }
-    } catch (e) {
+  try {
+    final cloudUserId = await _syncService.getCloudUserId();
+    if (cloudUserId != null) {
+      await _syncService.syncLocalToCloud(cloudUserId);
+      
       if (!mounted) return;
       
       _showMessage(
-        'Erro',
-        'Não foi possível sincronizar: $e',
-        Icons.error,
-        isSuccess: false,
+        'Sucesso!',
+        'Dados sincronizados com a nuvem.',
+        Icons.cloud_done,
+        isSuccess: true,
       );
-    } finally {
-      setState(() {
-        _isSyncing = false;
-      });
+      
+      // Atualizar a lista após sincronizar
+      widget.onSyncComplete();
     }
+  } catch (e) {
+    if (!mounted) return;
+    
+    _showMessage(
+      'Erro',
+      'Não foi possível sincronizar: $e',
+      Icons.error,
+      isSuccess: false,
+    );
+  } finally {
+    setState(() {
+      _isSyncing = false;
+    });
   }
+}
 
   void _showMessage(String title, String message, IconData icon, {bool isSuccess = true}) {
     showDialog(

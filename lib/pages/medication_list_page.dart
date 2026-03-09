@@ -20,46 +20,68 @@ class _MedicationListPageState extends State<MedicationListPage> {
   bool _isLoading = true;
   
   final SyncService _syncService = SyncService();
-  final String _localUserId = 'local_user_001';
+  String _currentUserId = 'local_user_001'; // ID padrão para usuário não logado
 
   @override
   void initState() {
     super.initState();
-    _checkUserAndLoad();
+    _initializeUserAndLoad();
+  }
+
+  // NOVO: Inicializar e salvar o ID do usuário local
+  Future<void> _initializeUserAndLoad() async {
+    // Salvar o ID do usuário local se ainda não existir
+    final existingLocalId = await _syncService.getLocalUserId();
+    if (existingLocalId == null) {
+      await _syncService.setLocalUserId(_currentUserId);
+      print('✅ ID local salvo: $_currentUserId');
+    } else {
+      _currentUserId = existingLocalId;
+      print('📌 ID local existente: $_currentUserId');
+    }
+    
+    await _checkUserAndLoad();
+  }
+
+  Future<String> _getEffectiveUserId() async {
+    final status = await _syncService.getSyncStatus();
+    if (status['isLoggedIn'] && status['cloudUserId'] != null) {
+      return status['cloudUserId'];
+    }
+    return _currentUserId;
   }
 
   Future<void> _checkUserAndLoad() async {
-  // Verificar se já está logado na nuvem
-  final status = await _syncService.getSyncStatus();
-  
-  if (status['isLoggedIn']) {
-    // Se está logado, carregar da nuvem
-    try {
-      final cloudMeds = await _syncService.loadFromCloud(status['cloudUserId']);
-      setState(() {
-        _medications = cloudMeds;
-        _isLoading = false;
-      });
-    } catch (e) {
-      // Se falhar, carregar local
+    final status = await _syncService.getSyncStatus();
+    
+    if (status['isLoggedIn']) {
+      _currentUserId = status['cloudUserId'];
+      
+      try {
+        final cloudMeds = await _syncService.loadFromCloud(_currentUserId);
+        setState(() {
+          _medications = cloudMeds;
+          _isLoading = false;
+        });
+      } catch (e) {
+        await _loadMedications();
+      }
+    } else {
       await _loadMedications();
     }
-  } else {
-    // Não está logado, carregar local
-    await _loadMedications();
   }
-}
 
   Future<void> _loadMedications() async {
     try {
-      final medications = await _medicationService.getMedicationsList(_localUserId);
+      final userId = await _getEffectiveUserId();
+      final medications = await _medicationService.getMedicationsList(userId);
       
       setState(() {
         _medications = medications;
         _isLoading = false;
       });
       
-      print('📦 Medicamentos carregados: ${medications.length}');
+      print('📦 Medicamentos carregados para $userId: ${medications.length}');
     } catch (e) {
       print('❌ Erro ao carregar medicamentos: $e');
       setState(() {
@@ -99,6 +121,11 @@ class _MedicationListPageState extends State<MedicationListPage> {
       await _medicationService.deleteMedication(medicationId);
       await _loadMedications();
       
+      final status = await _syncService.getSyncStatus();
+      if (status['isLoggedIn']) {
+        await _syncService.syncLocalToCloud(status['cloudUserId']);
+      }
+      
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Medicamento excluído com sucesso!'),
@@ -121,11 +148,16 @@ class _MedicationListPageState extends State<MedicationListPage> {
       MaterialPageRoute(
         builder: (context) => AddMedicationPage(
           medication: medication,
-          localUserId: _localUserId,
+          localUserId: _currentUserId,
         ),
       ),
-    ).then((_) {
-      _loadMedications();
+    ).then((_) async {
+      await _loadMedications();
+      
+      final status = await _syncService.getSyncStatus();
+      if (status['isLoggedIn']) {
+        await _syncService.syncLocalToCloud(status['cloudUserId']);
+      }
     });
   }
 
@@ -134,74 +166,73 @@ class _MedicationListPageState extends State<MedicationListPage> {
     return Scaffold(
       backgroundColor: const Color(0xFFFFFFFF),
       appBar: AppBar(
-  leading: Container(
-    margin: const EdgeInsets.all(6),
-    child: Image.asset(
-      'assets/logo.png',
-      fit: BoxFit.contain,
-      errorBuilder: (context, error, stackTrace) {
-        return Container(
-          decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.2),
-            shape: BoxShape.circle,
+        leading: Container(
+          margin: const EdgeInsets.all(6),
+          child: Image.asset(
+            'assets/logo.png',
+            fit: BoxFit.contain,
+            errorBuilder: (context, error, stackTrace) {
+              return Container(
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.2),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.medical_services,
+                  color: Colors.white,
+                  size: 24,
+                ),
+              );
+            },
           ),
-          child: const Icon(
-            Icons.medical_services,
-            color: Colors.white,
-            size: 24,
+        ),
+        title: const Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Hora do Remédio',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            Text(
+              'Cuide da sua saúde',
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.normal,
+              ),
+            ),
+          ],
+        ),
+        backgroundColor: const Color(0xFF1976D2),
+        foregroundColor: Colors.white,
+        actions: [
+          SyncButton(
+            onSyncComplete: _loadMedications,
           ),
-        );
-      },
-    ),
-  ),
-  title: const Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      Text(
-        'Hora do Remédio',
-        style: TextStyle(
-          fontSize: 18,
-          fontWeight: FontWeight.bold,
-        ),
+          IconButton(
+            icon: const Icon(Icons.help_outline),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const HelpPage()),
+              );
+            },
+            tooltip: 'Ajuda',
+          ),
+          IconButton(
+            icon: const Icon(Icons.person),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const ProfilePage()),
+              );
+            },
+            tooltip: 'Perfil',
+          ),
+        ],
       ),
-      Text(
-        'Cuide da sua saúde',
-        style: TextStyle(
-          fontSize: 12,
-          fontWeight: FontWeight.normal,
-        ),
-      ),
-    ],
-  ),
-  backgroundColor: const Color(0xFF1976D2),
-  foregroundColor: Colors.white,
-  actions: [
-    // NOVO: Botão de sincronização
-    SyncButton(
-      onSyncComplete: _loadMedications,
-    ),
-    IconButton(
-      icon: const Icon(Icons.help_outline),
-      onPressed: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (context) => const HelpPage()),
-        );
-      },
-      tooltip: 'Ajuda',
-    ),
-    IconButton(
-      icon: const Icon(Icons.person),
-      onPressed: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (context) => const ProfilePage()),
-        );
-      },
-      tooltip: 'Perfil',
-    ),
-  ],
-),
       body: _isLoading
           ? const Center(
               child: Column(
@@ -226,7 +257,6 @@ class _MedicationListPageState extends State<MedicationListPage> {
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      // Logo central também
                       Image.asset(
                         'assets/logo.png',
                         height: 120,
@@ -256,14 +286,24 @@ class _MedicationListPageState extends State<MedicationListPage> {
                       ),
                       const SizedBox(height: 20),
                       ElevatedButton(
-                        onPressed: () {
+                        onPressed: () async {
+                          final userId = await _getEffectiveUserId();
+                          if (!mounted) return;
+                          
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (context) => AddMedicationPage(localUserId: _localUserId),
+                              builder: (context) => AddMedicationPage(
+                                localUserId: userId,
+                              ),
                             ),
-                          ).then((_) {
-                            _loadMedications();
+                          ).then((_) async {
+                            await _loadMedications();
+                            
+                            final status = await _syncService.getSyncStatus();
+                            if (status['isLoggedIn']) {
+                              await _syncService.syncLocalToCloud(status['cloudUserId']);
+                            }
                           });
                         },
                         child: const Text('Adicionar Primeiro Medicamento'),
@@ -280,14 +320,24 @@ class _MedicationListPageState extends State<MedicationListPage> {
                   },
                 ),
       floatingActionButton: FloatingActionButton(
-        onPressed: () {
+        onPressed: () async {
+          final userId = await _getEffectiveUserId();
+          if (!mounted) return;
+          
           Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (context) => AddMedicationPage(localUserId: _localUserId),
+              builder: (context) => AddMedicationPage(
+                localUserId: userId,
+              ),
             ),
-          ).then((_) {
-            _loadMedications();
+          ).then((_) async {
+            await _loadMedications();
+            
+            final status = await _syncService.getSyncStatus();
+            if (status['isLoggedIn']) {
+              await _syncService.syncLocalToCloud(status['cloudUserId']);
+            }
           });
         },
         backgroundColor: const Color(0xFF388E3C),
