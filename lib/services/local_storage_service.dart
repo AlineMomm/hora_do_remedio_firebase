@@ -83,6 +83,11 @@ class LocalStorageService {
     await prefs.setString(_medicationsKey, json.encode(medications));
   }
 
+  Future<void> saveAllMedications(List<Map<String, dynamic>> medications) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_medicationsKey, json.encode(medications));
+  }
+
   Future<List<Map<String, dynamic>>> getMedications({String? userId}) async {
     final prefs = await SharedPreferences.getInstance();
     final medicationsString = prefs.getString(_medicationsKey);

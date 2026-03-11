@@ -64,56 +64,60 @@ class _AddMedicationPageState extends State<AddMedicationPage> {
   }
 
   Future<void> _saveMedication() async {
-    if (_formKey.currentState!.validate()) {
-      setState(() {
-        _isLoading = true;
-      });
+  if (_formKey.currentState!.validate()) {
+    setState(() {
+      _isLoading = true;
+    });
 
-      try {
-        final medication = MedicationModel(
-          id: _isEditing ? widget.medication!.id : '',
-          userId: widget.localUserId,
-          name: _nameController.text.trim(),
-          hour: _selectedTime.hour,
-          minute: _selectedTime.minute,
-          frequency: _selectedFrequency,
-          notes: _notesController.text.trim().isEmpty ? null : _notesController.text.trim(),
-          createdAt: _isEditing ? widget.medication!.createdAt : DateTime.now(),
-        );
+    try {
+      final medication = MedicationModel(
+        id: _isEditing ? widget.medication!.id : '',
+        userId: widget.localUserId,
+        name: _nameController.text.trim(),
+        hour: _selectedTime.hour,
+        minute: _selectedTime.minute,
+        frequency: _selectedFrequency,
+        notes: _notesController.text.trim().isEmpty ? null : _notesController.text.trim(),
+        createdAt: _isEditing ? widget.medication!.createdAt : DateTime.now(),
+      );
 
-        if (_isEditing) {
-          await _medicationService.updateMedication(medication);
-        } else {
-          await _medicationService.addMedication(medication);
-        }
-
-        if (!mounted) return;
-        
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Medicamento salvo com sucesso!'),
-            backgroundColor: Color(0xFF4CAF50),
-          ),
-        );
-        
-        Navigator.pop(context);
-      } catch (e) {
-        if (!mounted) return;
-        
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Erro: $e'),
-            backgroundColor: const Color(0xFFD32F2F),
-            duration: const Duration(seconds: 5),
-          ),
-        );
-      } finally {
-        setState(() {
-          _isLoading = false;
-        });
+      if (_isEditing) {
+        await _medicationService.updateMedication(medication);
+        print('✅ Medicamento atualizado via updateMedication');
+      } else {
+        await _medicationService.addMedication(medication);
+        print('✅ Medicamento adicionado via addMedication');
       }
+
+      if (!mounted) return;
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(_isEditing 
+              ? 'Medicamento atualizado com sucesso!' 
+              : 'Medicamento salvo com sucesso!'),
+          backgroundColor: const Color(0xFF4CAF50),
+        ),
+      );
+      
+      Navigator.pop(context);
+    } catch (e) {
+      if (!mounted) return;
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Erro: $e'),
+          backgroundColor: const Color(0xFFD32F2F),
+          duration: const Duration(seconds: 5),
+        ),
+      );
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
     }
   }
+}
 
   @override
   Widget build(BuildContext context) {

@@ -52,7 +52,6 @@ class _ProfilePageState extends State<ProfilePage> {
   UserModel? _cloudUserData;
   String? _cloudUserId;
 
-  // Para controlar a formatação
   bool _isFormatting = false;
   String _lastPhoneRawValue = '';
   String _lastEmergencyPhoneRawValue = '';
@@ -76,12 +75,8 @@ class _ProfilePageState extends State<ProfilePage> {
         _cloudUserId = status['cloudUserId'];
       });
 
-      if (_isCloudUser && _cloudUserId != null) {
-        await _loadCloudUserProfile();
-      } else {
-        await _loadCloudUserData();
-        await _loadProfile();
-      }
+      // Carregar dados
+      await _loadUserData();
       
     } catch (e) {
       print('❌ Erro ao carregar dados: $e');
@@ -92,83 +87,141 @@ class _ProfilePageState extends State<ProfilePage> {
     }
   }
 
-  Future<void> _loadCloudUserProfile() async {
+  // NOVO: Carregar dados unificados (nuvem + local)
+  Future<void> _loadUserData() async {
     try {
-      print('🔄 Carregando perfil da nuvem para $_cloudUserId');
-      final cloudProfile = await _firebaseService.getUserProfile(_cloudUserId!);
-      
-      if (cloudProfile != null) {
-        setState(() {
+      // Primeiro, tentar carregar da nuvem se estiver logado
+      if (_isCloudUser && _cloudUserId != null) {
+        final cloudProfile = await _firebaseService.getUserProfile(_cloudUserId!);
+        if (cloudProfile != null) {
           _cloudUserData = cloudProfile;
-        });
-        
-        _nameController.text = cloudProfile.name;
-        _emailController.text = cloudProfile.email;
-        
-        if (cloudProfile.phone != null && cloudProfile.phone!.isNotEmpty) {
-          _phoneController.text = _formatPhoneNumber(cloudProfile.phone!);
-        }
-        
-        if (cloudProfile.age != null) {
-          _ageController.text = cloudProfile.age.toString();
-        }
-        
-        if (cloudProfile.bloodType != null) {
-          _bloodTypeController.text = cloudProfile.bloodType!;
-        }
-        
-        if (cloudProfile.emergencyContactName != null) {
-          _emergencyNameController.text = cloudProfile.emergencyContactName!;
-        }
-        
-        if (cloudProfile.emergencyContactPhone != null && cloudProfile.emergencyContactPhone!.isNotEmpty) {
-          _emergencyPhoneController.text = _formatPhoneNumber(cloudProfile.emergencyContactPhone!);
-        }
-        
-        if (cloudProfile.observations != null) {
-          _observationsController.text = cloudProfile.observations!;
-        }
-        
-        if (cloudProfile.profileImageUrl != null) {
-          try {
-            _profileImageBase64 = cloudProfile.profileImageUrl;
-            _profileImageBytes = base64Decode(cloudProfile.profileImageUrl!);
-          } catch (e) {
-            print('⚠️ Erro ao decodificar imagem: $e');
+          
+          // Preencher com dados da nuvem
+          _nameController.text = cloudProfile.name;
+          _emailController.text = cloudProfile.email;
+          
+          if (cloudProfile.phone != null && cloudProfile.phone!.isNotEmpty) {
+            _phoneController.text = _formatPhoneNumber(cloudProfile.phone!);
+            _lastPhoneRawValue = cloudProfile.phone!;
           }
+          
+          if (cloudProfile.age != null) {
+            _ageController.text = cloudProfile.age.toString();
+          }
+          
+          if (cloudProfile.bloodType != null) {
+            _bloodTypeController.text = cloudProfile.bloodType!;
+          }
+          
+          if (cloudProfile.emergencyContactName != null) {
+            _emergencyNameController.text = cloudProfile.emergencyContactName!;
+          }
+          
+          if (cloudProfile.emergencyContactPhone != null && cloudProfile.emergencyContactPhone!.isNotEmpty) {
+            _emergencyPhoneController.text = _formatPhoneNumber(cloudProfile.emergencyContactPhone!);
+            _lastEmergencyPhoneRawValue = cloudProfile.emergencyContactPhone!;
+          }
+          
+          if (cloudProfile.observations != null) {
+            _observationsController.text = cloudProfile.observations!;
+          }
+          
+          if (cloudProfile.profileImageUrl != null) {
+            try {
+              _profileImageBase64 = cloudProfile.profileImageUrl;
+              _profileImageBytes = base64Decode(cloudProfile.profileImageUrl!);
+            } catch (e) {
+              print('⚠️ Erro ao decodificar imagem: $e');
+            }
+          }
+          
+          print('✅ Perfil carregado da nuvem: ${cloudProfile.name}');
+          
+          // Salvar uma cópia local para fallback
+          await _saveLocalProfileCopy();
+          return;
         }
-        
-        print('✅ Perfil carregado da nuvem: ${cloudProfile.name}');
-      } else {
-        await _loadCloudUserData();
-        await _loadProfile();
       }
+      
+      // Se não conseguiu carregar da nuvem, carregar do local
+      await _loadLocalProfile();
+      
     } catch (e) {
-      print('❌ Erro ao carregar perfil da nuvem: $e');
-      await _loadCloudUserData();
-      await _loadProfile();
+      print('❌ Erro ao carregar dados do usuário: $e');
+      await _loadLocalProfile();
     }
   }
 
-  Future<void> _loadCloudUserData() async {
+  // NOVO: Carregar perfil local
+  Future<void> _loadLocalProfile() async {
     try {
-      final userData = await _authService.getCurrentUser();
-      if (userData != null) {
-        setState(() {
-          _cloudUserData = userData;
-        });
-        print('✅ Dados da nuvem carregados: ${userData.name}');
+      final profile = await _getProfile();
+      
+      print('📝 Carregando perfil local');
+      
+      _nameController.text = profile['name'] ?? '';
+      _emailController.text = profile['email'] ?? '';
+      
+      final phone = profile['phone'] ?? '';
+      if (phone.isNotEmpty) {
+        _phoneController.text = _formatPhoneNumber(phone);
+        _lastPhoneRawValue = phone;
       }
+      
+      _ageController.text = profile['age']?.toString() ?? '';
+      _bloodTypeController.text = profile['bloodType'] ?? '';
+      _emergencyNameController.text = profile['emergencyContactName'] ?? '';
+      
+      final emergencyPhone = profile['emergencyContactPhone'] ?? '';
+      if (emergencyPhone.isNotEmpty) {
+        _emergencyPhoneController.text = _formatPhoneNumber(emergencyPhone);
+        _lastEmergencyPhoneRawValue = emergencyPhone;
+      }
+      
+      _observationsController.text = profile['observations'] ?? '';
+      
+      if (profile['profileImage'] != null) {
+        try {
+          _profileImageBase64 = profile['profileImage'];
+          _profileImageBytes = base64Decode(profile['profileImage']);
+        } catch (e) {
+          print('⚠️ Erro ao decodificar imagem local: $e');
+        }
+      }
+      
+      print('✅ Perfil carregado localmente');
+      
     } catch (e) {
-      print('❌ Erro ao carregar dados da nuvem: $e');
+      print('❌ Erro ao carregar perfil local: $e');
     }
   }
 
-  // FUNÇÃO SIMPLIFICADA: Formata o telefone no padrão (47) 99999-9999
+  // NOVO: Salvar cópia local do perfil da nuvem
+  Future<void> _saveLocalProfileCopy() async {
+    try {
+      final profileData = {
+        'uid': _profileId,
+        'name': _nameController.text.trim(),
+        'email': _emailController.text.trim(),
+        'phone': _lastPhoneRawValue,
+        'age': int.tryParse(_ageController.text.trim()),
+        'bloodType': _bloodTypeController.text.trim(),
+        'emergencyContactName': _emergencyNameController.text.trim(),
+        'emergencyContactPhone': _lastEmergencyPhoneRawValue,
+        'observations': _observationsController.text.trim(),
+        'profileImage': _profileImageBase64,
+        'lastSync': DateTime.now().millisecondsSinceEpoch,
+      };
+      
+      await _storage.saveUser(profileData);
+      print('✅ Cópia local do perfil salva');
+    } catch (e) {
+      print('⚠️ Erro ao salvar cópia local: $e');
+    }
+  }
+
   String _formatPhoneNumber(String rawNumber) {
-    // Remove tudo que não é número
     final numbers = rawNumber.replaceAll(RegExp(r'[^0-9]'), '');
-    
     if (numbers.isEmpty) return '';
     
     StringBuffer formatted = StringBuffer();
@@ -192,29 +245,24 @@ class _ProfilePageState extends State<ProfilePage> {
     return formatted.toString();
   }
 
-  // Remove a formatação para salvar apenas os números
   String _unformatPhoneNumber(String formatted) {
     return formatted.replaceAll(RegExp(r'[^0-9]'), '');
   }
 
-  // Listener para o telefone principal - VERSÃO SIMPLIFICADA
   void _onPhoneChanged() {
     if (_isFormatting) return;
     
     final currentText = _phoneController.text;
     final rawNumbers = currentText.replaceAll(RegExp(r'[^0-9]'), '');
     
-    // Se não mudou o valor bruto, não faz nada
     if (rawNumbers == _lastPhoneRawValue) return;
     
     _isFormatting = true;
     
     if (rawNumbers.isEmpty) {
-      // Se apagou tudo, limpa o campo
       _phoneController.clear();
       _lastPhoneRawValue = '';
     } else {
-      // Aplica a formatação
       final formatted = _formatPhoneNumber(rawNumbers);
       _phoneController.value = TextEditingValue(
         text: formatted,
@@ -226,7 +274,6 @@ class _ProfilePageState extends State<ProfilePage> {
     _isFormatting = false;
   }
 
-  // Listener para o telefone de emergência - VERSÃO SIMPLIFICADA
   void _onEmergencyPhoneChanged() {
     if (_isFormatting) return;
     
@@ -250,71 +297,6 @@ class _ProfilePageState extends State<ProfilePage> {
     }
     
     _isFormatting = false;
-  }
-
-  Future<void> _loadProfile() async {
-    try {
-      final profile = await _getProfile();
-      
-      print('📝 Carregando perfil - Nome do perfil: ${profile['name']}');
-      print('📝 Carregando perfil - Nome da nuvem: ${_cloudUserData?.name}');
-      
-      if (_nameController.text.isEmpty) {
-        if (_cloudUserData != null && _cloudUserData!.name.isNotEmpty) {
-          _nameController.text = _cloudUserData!.name;
-        } else if (profile['name'] != null && profile['name'].toString().isNotEmpty) {
-          _nameController.text = profile['name'];
-        }
-      }
-      
-      if (_emailController.text.isEmpty) {
-        _emailController.text = profile['email'] ?? _cloudUserData?.email ?? '';
-      }
-      
-      if (_phoneController.text.isEmpty) {
-        final phone = profile['phone'] ?? '';
-        if (phone.isNotEmpty) {
-          _phoneController.text = _formatPhoneNumber(phone);
-          _lastPhoneRawValue = phone.replaceAll(RegExp(r'[^0-9]'), '');
-        }
-      }
-      
-      if (_ageController.text.isEmpty) {
-        _ageController.text = profile['age']?.toString() ?? '';
-      }
-      
-      if (_bloodTypeController.text.isEmpty) {
-        _bloodTypeController.text = profile['bloodType'] ?? '';
-      }
-      
-      if (_emergencyNameController.text.isEmpty) {
-        _emergencyNameController.text = profile['emergencyContactName'] ?? '';
-      }
-      
-      if (_emergencyPhoneController.text.isEmpty) {
-        final emergencyPhone = profile['emergencyContactPhone'] ?? '';
-        if (emergencyPhone.isNotEmpty) {
-          _emergencyPhoneController.text = _formatPhoneNumber(emergencyPhone);
-          _lastEmergencyPhoneRawValue = emergencyPhone.replaceAll(RegExp(r'[^0-9]'), '');
-        }
-      }
-      
-      if (_observationsController.text.isEmpty) {
-        _observationsController.text = profile['observations'] ?? '';
-      }
-      
-      if (_profileImageBytes == null && profile['profileImage'] != null) {
-        try {
-          _profileImageBase64 = profile['profileImage'];
-          _profileImageBytes = base64Decode(profile['profileImage']);
-        } catch (e) {
-          print('⚠️ Erro ao decodificar imagem local: $e');
-        }
-      }
-      
-    } catch (e) {
-      print('❌ Erro ao carregar perfil: $e');
-    }
   }
 
   Future<Map<String, dynamic>> _getProfile() async {
@@ -441,6 +423,7 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
+  // MODIFICADO: Salvar perfil em ambos os lugares
   Future<void> _saveProfile() async {
     if (_formKey.currentState!.validate()) {
       setState(() {
@@ -451,6 +434,7 @@ class _ProfilePageState extends State<ProfilePage> {
         final cleanPhone = _unformatPhoneNumber(_phoneController.text);
         final cleanEmergencyPhone = _unformatPhoneNumber(_emergencyPhoneController.text);
         
+        // 1. SALVAR LOCALMENTE (sempre)
         final profileData = {
           'uid': _profileId,
           'name': _nameController.text.trim(),
@@ -462,12 +446,13 @@ class _ProfilePageState extends State<ProfilePage> {
           'emergencyContactPhone': cleanEmergencyPhone,
           'observations': _observationsController.text.trim(),
           'profileImage': _profileImageBase64,
-          'createdAt': DateTime.now().millisecondsSinceEpoch,
+          'lastSync': DateTime.now().millisecondsSinceEpoch,
         };
 
         await _storage.saveUser(profileData);
         print('✅ Perfil salvo localmente');
 
+        // 2. SALVAR NA NUVEM (se estiver logado)
         if (_isCloudUser && _cloudUserId != null) {
           final userModel = UserModel(
             uid: _cloudUserId!,
@@ -484,6 +469,11 @@ class _ProfilePageState extends State<ProfilePage> {
           
           await _syncService.updateUserProfileInCloud(userModel);
           print('✅ Perfil salvo na nuvem');
+          
+          // Atualizar dados locais do usuário da nuvem
+          setState(() {
+            _cloudUserData = userModel;
+          });
         }
 
         if (!mounted) return;
@@ -621,7 +611,10 @@ class _ProfilePageState extends State<ProfilePage> {
     });
 
     try {
+      // Antes de sair, garantir que temos uma cópia local atualizada
+      await _saveLocalProfileCopy();
       await _saveCloudMedsLocally();
+      
       await _syncService.logoutFromCloud();
       await _authService.signOut();
       
@@ -629,7 +622,7 @@ class _ProfilePageState extends State<ProfilePage> {
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Você saiu da sua conta com sucesso!\nSeus medicamentos foram salvos no celular.'),
+          content: Text('Você saiu da sua conta com sucesso!\nSeus medicamentos e perfil foram salvos no celular.'),
           backgroundColor: Color(0xFF4CAF50),
           duration: Duration(seconds: 4),
         ),
@@ -917,9 +910,9 @@ class _ProfilePageState extends State<ProfilePage> {
                               decoration: InputDecoration(
                                 labelText: 'Nome completo',
                                 prefixIcon: const Icon(Icons.person, color: Color(0xFF757575)),
-                                helperText: _cloudUserData != null 
-                                    ? 'Nome da sua conta na nuvem' 
-                                    : null,
+                                helperText: _isCloudUser 
+                                    ? 'Sincronizado com a nuvem' 
+                                    : 'Salvo apenas no celular',
                               ),
                               enabled: _isEditing,
                               validator: (value) {
@@ -1144,7 +1137,7 @@ class _ProfilePageState extends State<ProfilePage> {
                       const Padding(
                         padding: EdgeInsets.only(top: 4, bottom: 16),
                         child: Text(
-                          'Ao sair, seus medicamentos continuam salvos no celular.\n'
+                          'Ao sair, seus medicamentos e perfil continuam salvos no celular.\n'
                           'Quando você entrar novamente, eles serão sincronizados.',
                           textAlign: TextAlign.center,
                           style: TextStyle(

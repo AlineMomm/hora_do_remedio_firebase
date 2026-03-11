@@ -52,43 +52,53 @@ class _MedicationListPageState extends State<MedicationListPage> {
   }
 
   Future<void> _checkUserAndLoad() async {
-    final status = await _syncService.getSyncStatus();
+  final status = await _syncService.getSyncStatus();
+  
+  if (status['isLoggedIn']) {
+    _currentUserId = status['cloudUserId'];
     
-    if (status['isLoggedIn']) {
-      _currentUserId = status['cloudUserId'];
+    try {
+      final cloudMeds = await _syncService.loadFromCloud(_currentUserId);
+      cloudMeds.sort((a, b) {
+        if (a.hour != b.hour) return a.hour.compareTo(b.hour);
+        if (a.minute != b.minute) return a.minute.compareTo(b.minute);
+        return a.name.compareTo(b.name);
+      });
       
-      try {
-        final cloudMeds = await _syncService.loadFromCloud(_currentUserId);
-        setState(() {
-          _medications = cloudMeds;
-          _isLoading = false;
-        });
-      } catch (e) {
-        await _loadMedications();
-      }
-    } else {
+      setState(() {
+        _medications = cloudMeds;
+        _isLoading = false;
+      });
+    } catch (e) {
       await _loadMedications();
     }
+  } else {
+    await _loadMedications();
   }
+}
 
   Future<void> _loadMedications() async {
-    try {
-      final userId = await _getEffectiveUserId();
-      final medications = await _medicationService.getMedicationsList(userId);
-      
-      setState(() {
-        _medications = medications;
-        _isLoading = false;
-      });
-      
-      print('📦 Medicamentos carregados para $userId: ${medications.length}');
-    } catch (e) {
-      print('❌ Erro ao carregar medicamentos: $e');
-      setState(() {
-        _isLoading = false;
-      });
+  try {
+    final userId = await _getEffectiveUserId();
+    final medications = await _medicationService.getMedicationsList(userId);
+    
+    setState(() {
+      _medications = medications;
+      _isLoading = false;
+    });
+    
+    print('📦 Medicamentos carregados para $userId: ${medications.length}');
+    
+    for (var i = 0; i < medications.length; i++) {
+      print('   ${i+1}. ${medications[i].name} - ${medications[i].formattedTime}');
     }
+  } catch (e) {
+    print('❌ Erro ao carregar medicamentos: $e');
+    setState(() {
+      _isLoading = false;
+    });
   }
+}
 
   void _confirmDeleteMedication(MedicationModel medication) {
     showDialog(

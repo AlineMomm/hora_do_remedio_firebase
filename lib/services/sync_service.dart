@@ -189,52 +189,43 @@ class SyncService {
     }
   }
 
-  // MODIFICADO: Carregar da nuvem sem sobrescrever dados locais existentes
-  Future<void> _mergeCloudWithLocal(String cloudUserId) async {
+Future<void> _mergeCloudWithLocal(String cloudUserId) async {
   try {
     print('🔄 Mesclando dados da nuvem com locais...');
     
-    // Carregar medicamentos da nuvem
     final cloudMeds = await _firebaseService.loadMedicationsFromCloud(cloudUserId);
     
-    if (cloudMeds.isNotEmpty) {
-      print('📦 Carregando ${cloudMeds.length} medicamentos da nuvem');
+    // Ordenar medicamentos da nuvem
+    final sortedCloudMeds = List<MedicationModel>.from(cloudMeds);
+    sortedCloudMeds.sort((a, b) {
+      if (a.hour != b.hour) return a.hour.compareTo(b.hour);
+      if (a.minute != b.minute) return a.minute.compareTo(b.minute);
+      return a.name.compareTo(b.name);
+    });
+    
+    if (sortedCloudMeds.isNotEmpty) {
+      print('📦 Carregando ${sortedCloudMeds.length} medicamentos da nuvem');
       
-      // Carregar medicamentos locais atuais
       final localMeds = await _medicationService.getMedicationsList(cloudUserId);
+      
+      final Map<String, MedicationModel> existingMeds = {};
+      for (var med in localMeds) {
+        final key = '${med.name}_${med.hour}_${med.minute}';
+        existingMeds[key] = med;
+      }
       
       int adicionados = 0;
       int ignorados = 0;
       
-      for (var cloudMed in cloudMeds) {
-        bool existeLocal = false;
+      for (var cloudMed in sortedCloudMeds) {
+        final key = '${cloudMed.name}_${cloudMed.hour}_${cloudMed.minute}';
         
-        // Verificar se já existe localmente (por nome e horário)
-        for (var localMed in localMeds) {
-          if (_isSameMedication(cloudMed, localMed)) {
-            existeLocal = true;
-            print('   ⏭️ Já existe localmente: ${cloudMed.name} (${cloudMed.formattedTime})');
-            break;
-          }
-        }
-        
-        if (!existeLocal) {
+        if (!existingMeds.containsKey(key)) {
           print('   ✅ Adicionando localmente: ${cloudMed.name} (${cloudMed.formattedTime})');
-          
-          // Criar uma cópia com o mesmo ID (ou novo se preferir)
-          final newMed = MedicationModel(
-            id: cloudMed.id, // Manter o ID original
-            userId: cloudUserId,
-            name: cloudMed.name,
-            hour: cloudMed.hour,
-            minute: cloudMed.minute,
-            frequency: cloudMed.frequency,
-            notes: cloudMed.notes,
-            createdAt: cloudMed.createdAt,
-          );
-          await _medicationService.addMedication(newMed);
+          await _medicationService.addMedication(cloudMed);
           adicionados++;
         } else {
+          print('   ⏭️ Já existe localmente: ${cloudMed.name} (${cloudMed.formattedTime})');
           ignorados++;
         }
       }
@@ -329,38 +320,44 @@ class SyncService {
   }
 
   Future<List<MedicationModel>> loadFromCloud(String userId) async {
-    if (!await hasInternetConnection()) {
-      throw 'Sem conexão com a internet';
-    }
+  if (!await hasInternetConnection()) {
+    throw 'Sem conexão com a internet';
+  }
 
-    try {
-      final cloudMeds = await _firebaseService.loadMedicationsFromCloud(userId);
+  try {
+    final cloudMeds = await _firebaseService.loadMedicationsFromCloud(userId);
+    
+    // Ordenar medicamentos da nuvem
+    final sortedCloudMeds = List<MedicationModel>.from(cloudMeds);
+    sortedCloudMeds.sort((a, b) {
+      if (a.hour != b.hour) return a.hour.compareTo(b.hour);
+      if (a.minute != b.minute) return a.minute.compareTo(b.minute);
+      return a.name.compareTo(b.name);
+    });
+    
+    final localMeds = await _medicationService.getMedicationsList(userId);
+    
+    for (var cloudMed in sortedCloudMeds) {
+      bool existeLocal = false;
       
-      // Carregar medicamentos locais
-      final localMeds = await _medicationService.getMedicationsList(userId);
-      
-      for (var cloudMed in cloudMeds) {
-        bool existeLocal = false;
-        
-        // Verificar se já existe (por nome e horário)
-        for (var localMed in localMeds) {
-          if (_isSameMedication(cloudMed, localMed)) {
-            existeLocal = true;
-            break;
-          }
-        }
-        
-        if (!existeLocal) {
-          await _medicationService.addMedication(cloudMed);
+      for (var localMed in localMeds) {
+        if (_isSameMedication(cloudMed, localMed)) {
+          existeLocal = true;
+          break;
         }
       }
       
-      return cloudMeds;
-    } catch (e) {
-      print('❌ Erro ao carregar da nuvem: $e');
-      rethrow;
+      if (!existeLocal) {
+        await _medicationService.addMedication(cloudMed);
+      }
     }
+    
+    return sortedCloudMeds;
+  } catch (e) {
+    print('❌ Erro ao carregar da nuvem: $e');
+    rethrow;
   }
+}
 
   Future<void> updateUserProfileInCloud(UserModel user) async {
   try {
