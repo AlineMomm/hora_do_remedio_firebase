@@ -93,68 +93,74 @@ class HelpPage extends StatelessWidget {
   }
 
   Widget _buildIconsSection(SettingsService settings) {
-    return Card(
-      elevation: 3,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-      ),
-      color: Colors.white,
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFE8F0FE),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: const Icon(
-                    Icons.touch_app,
-                    color: Color(0xFF0D47A1),
-                    size: 24,
-                  ),
+  return Card(
+    elevation: 3,
+    shape: RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(16),
+    ),
+    color: Colors.white,
+    child: Padding(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // CORRIGIDO: Row com Expanded para evitar overflow
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFE8F0FE),
+                  borderRadius: BorderRadius.circular(8),
                 ),
-                const SizedBox(width: 12),
-                Text(
+                child: const Icon(
+                  Icons.touch_app,
+                  color: Color(0xFF0D47A1),
+                  size: 24,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded( // <-- IMPORTANTE: Expanded aqui!
+                child: Text(
                   'O que significa cada ícone:',
                   style: settings.getTextStyle(
                     size: 20,
                     fontWeight: FontWeight.bold,
                     color: const Color(0xFF0D47A1),
                   ),
+                  maxLines: 2,
+                  softWrap: true,
+                  overflow: TextOverflow.ellipsis, // Segurança extra
                 ),
-              ],
-            ),
-            const SizedBox(height: 20),
-            _buildIconItem(settings, Icons.add, 'Botão Adicionar',
-                'Toque aqui para cadastrar um novo remédio. Aparece como um botão na parte inferior da tela com o texto "ADICIONAR MEDICAMENTO".'),
-            _buildIconItem(settings, Icons.edit, 'Lápis (Editar)',
-                'Toque neste ícone para modificar as informações de um remédio que já cadastrou.'),
-            _buildIconItem(settings, Icons.delete, 'Lixeira (Excluir)',
-                'Toque aqui para remover um remédio da sua lista. O app vai perguntar se você tem certeza antes de excluir.'),
-            _buildIconItem(settings, Icons.person, 'Silhueta (Perfil)',
-                'Toque aqui para ver e editar suas informações pessoais, como telefone, tipo sanguíneo e contato de emergência.'),
-            _buildIconItem(settings, Icons.help_outline, 'Ponto de Interrogação (Ajuda)',
-                'Toque aqui sempre que tiver dúvidas sobre como usar o aplicativo. Esta tela vai aparecer!'),
-            _buildIconItem(settings, Icons.cloud_upload, 'Nuvem (Sincronizar)',
-                'Toque aqui para fazer login na nuvem e salvar seus medicamentos online.'),
-            _buildIconItem(settings, Icons.exit_to_app, 'Porta de Saída (Sair)',
-                'Toque aqui para sair da sua conta e voltar para a tela inicial.'),
-            _buildIconItem(settings, Icons.access_time, 'Relógio (Horário)',
-                'Mostra o horário em que você deve tomar cada remédio.'),
-            _buildIconItem(settings, Icons.repeat, 'Seta Circular (Frequência)',
-                'Mostra de quanto em quanto tempo você deve tomar o remédio (todo dia, toda semana, etc.).'),
-            _buildIconItem(settings, Icons.medical_services, 'Cruz Médica (Remédio)',
-                'Representa cada medicamento que você cadastrou.'),
-          ],
-        ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
+          _buildIconItem(settings, Icons.add, 'Botão Adicionar',
+              'Toque aqui para cadastrar um novo remédio. Aparece como um botão na parte inferior da tela com o texto "ADICIONAR MEDICAMENTO".'),
+          _buildIconItem(settings, Icons.edit, 'Lápis (Editar)',
+              'Toque neste ícone para modificar as informações de um remédio que já cadastrou.'),
+          _buildIconItem(settings, Icons.delete, 'Lixeira (Excluir)',
+              'Toque aqui para remover um remédio da sua lista. O app vai perguntar se você tem certeza antes de excluir.'),
+          _buildIconItem(settings, Icons.person, 'Silhueta (Perfil)',
+              'Toque aqui para ver e editar suas informações pessoais, como telefone, tipo sanguíneo e contato de emergência.'),
+          _buildIconItem(settings, Icons.help_outline, 'Ponto de Interrogação (Ajuda)',
+              'Toque aqui sempre que tiver dúvidas sobre como usar o aplicativo. Esta tela vai aparecer!'),
+          _buildIconItem(settings, Icons.cloud_upload, 'Nuvem (Sincronizar)',
+              'Toque aqui para fazer login na nuvem e salvar seus medicamentos online.'),
+          _buildIconItem(settings, Icons.exit_to_app, 'Porta de Saída (Sair)',
+              'Toque aqui para sair da sua conta e voltar para a tela inicial.'),
+          _buildIconItem(settings, Icons.access_time, 'Relógio (Horário)',
+              'Mostra o horário em que você deve tomar cada remédio.'),
+          _buildIconItem(settings, Icons.repeat, 'Seta Circular (Frequência)',
+              'Mostra de quanto em quanto tempo você deve tomar o remédio (todo dia, toda semana, etc.).'),
+          _buildIconItem(settings, Icons.medical_services, 'Cruz Médica (Remédio)',
+              'Representa cada medicamento que você cadastrou.'),
+        ],
       ),
-    );
-  }
+    ),
+  );
+}
 
   Widget _buildIconItem(SettingsService settings, IconData icon, String title, String description) {
     return Padding(
@@ -221,8 +227,8 @@ class HelpPage extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // CORRIGIDO: Row com Expanded para evitar overflow
             Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Container(
                   padding: const EdgeInsets.all(8),
@@ -237,7 +243,7 @@ class HelpPage extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: 12),
-                Expanded(
+                Expanded( // <-- IMPORTANTE: Expanded aqui!
                   child: Text(
                     'Como usar as principais funções:',
                     style: settings.getTextStyle(

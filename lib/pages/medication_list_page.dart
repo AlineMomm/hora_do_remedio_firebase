@@ -230,85 +230,116 @@ void _onSyncChange() {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
-        leading: Container(
-          margin: const EdgeInsets.all(6),
-          child: Image.asset(
-            'assets/logo.png',
-            fit: BoxFit.contain,
-            errorBuilder: (context, error, stackTrace) {
-              return Container(
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.2),
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(
-                  Icons.medical_services,
-                  color: Colors.white,
-                  size: 24,
-                ),
-              );
-            },
+  title: Container(
+    height: 60, // Altura reduzida
+    margin: const EdgeInsets.symmetric(vertical: 8),
+    child: Image.asset(
+      'assets/logo_hora_remedio.png',
+      fit: BoxFit.contain,
+      errorBuilder: (context, error, stackTrace) {
+        return Container(
+          height: 60,
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.2),
+            borderRadius: BorderRadius.circular(15),
           ),
-        ),
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Hora do Remédio',
-              style: settings.getTextStyle(
-                size: 18,
+          child: Center(
+            child: Text(
+              'HORA DO REMÉDIO',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 22,
                 fontWeight: FontWeight.bold,
-                color: Colors.white,
               ),
             ),
-            Text(
-              'Cuide da sua saúde',
-              style: settings.getTextStyle(
-                size: 12,
-                fontWeight: FontWeight.normal,
-                color: Colors.white,
-              ),
-            ),
-          ],
-        ),
-        backgroundColor: const Color(0xFF1565C0),
-        foregroundColor: Colors.white,
-        elevation: 2,
-        actions: [
+          ),
+        );
+      },
+    ),
+  ),
+  backgroundColor: const Color(0xFF1565C0),
+  foregroundColor: Colors.white,
+  elevation: 2,
+  toolbarHeight: 80, // AppBar mais baixa para centralizar melhor
+  centerTitle: true,
+  actions: [
+    // Configurações
+    Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        mainAxisAlignment: MainAxisAlignment.center, // Centralizar verticalmente
+        children: [
           IconButton(
-            icon: const Icon(Icons.settings),
+            icon: Icon(Icons.settings, size: 28, color: Colors.white),
             onPressed: () {
               Navigator.push(
                 context,
                 MaterialPageRoute(builder: (context) => const SettingsPage()),
-              ).then((_) {
-                setState(() {});
-              });
+              );
             },
-            tooltip: 'Configurações',
+            padding: const EdgeInsets.all(4),
           ),
+          Text(
+            'Config.',
+            style: TextStyle(color: Colors.white, fontSize: 12),
+          ),
+        ],
+      ),
+    ),
+    
+    // Ajuda
+    Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        mainAxisAlignment: MainAxisAlignment.center, // Centralizar verticalmente
+        children: [
           IconButton(
-            icon: const Icon(Icons.help_outline),
+            icon: Icon(Icons.help_outline, size: 28, color: Colors.white),
             onPressed: () {
               Navigator.push(
                 context,
                 MaterialPageRoute(builder: (context) => const HelpPage()),
               );
             },
-            tooltip: 'Ajuda',
+            padding: const EdgeInsets.all(4),
           ),
+          Text(
+            'Ajuda',
+            style: TextStyle(color: Colors.white, fontSize: 12),
+          ),
+        ],
+      ),
+    ),
+    
+    // Perfil
+    Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        mainAxisAlignment: MainAxisAlignment.center, // Centralizar verticalmente
+        children: [
           IconButton(
-            icon: const Icon(Icons.person),
+            icon: Icon(Icons.person, size: 28, color: Colors.white),
             onPressed: () {
               Navigator.push(
                 context,
                 MaterialPageRoute(builder: (context) => const ProfilePage()),
               );
             },
-            tooltip: 'Perfil',
+            padding: const EdgeInsets.all(4),
+          ),
+          Text(
+            'Perfil',
+            style: TextStyle(color: Colors.white, fontSize: 12),
           ),
         ],
       ),
+    ),
+  ],
+),
       body: _isLoading
           ? const Center(
               child: Column(
@@ -386,7 +417,7 @@ void _onSyncChange() {
     );
   }
 
-  // NOVO: Botão de adicionar medicamento
+  // Botão de adicionar medicamento
   Widget _buildAddButton(SettingsService settings) {
     return Container(
       width: double.infinity,
@@ -448,8 +479,8 @@ void _onSyncChange() {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // Linha do nome e botões
             Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Expanded(
                   child: Text(
@@ -463,62 +494,99 @@ void _onSyncChange() {
                   ),
                 ),
                 Row(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
                     IconButton(
                       icon: const Icon(Icons.edit, size: 20),
                       onPressed: () => _editMedication(medication),
                       color: const Color(0xFFF57C00),
+                      constraints: const BoxConstraints(),
+                      padding: const EdgeInsets.all(8),
                     ),
                     IconButton(
                       icon: const Icon(Icons.delete, size: 20),
                       onPressed: () => _confirmDeleteMedication(medication),
                       color: const Color(0xFFD32F2F),
+                      constraints: const BoxConstraints(),
+                      padding: const EdgeInsets.all(8),
                     ),
                   ],
                 ),
               ],
             ),
+
             const SizedBox(height: 8),
-            Row(
+            Wrap(
+              spacing: 16,
+              runSpacing: 8,
               children: [
-                Icon(
-                  Icons.access_time,
-                  size: 16,
-                  color: Colors.grey[600],
+                // Horário
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.access_time,
+                      size: 16,
+                      color: Colors.grey[600],
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      '${medication.formattedTime}',
+                      style: settings.getTextStyle(
+                        size: 14,
+                        color: Colors.grey[600],
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(width: 4),
-                Text(
-                  'Horário: ${medication.formattedTime}',
-                  style: settings.getTextStyle(
-                    size: 14,
-                    color: Colors.grey[600],
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Icon(
-                  Icons.repeat,
-                  size: 16,
-                  color: Colors.grey[600],
-                ),
-                const SizedBox(width: 4),
-                Text(
-                  'Frequência: ${medication.frequency}',
-                  style: settings.getTextStyle(
-                    size: 14,
-                    color: Colors.grey[600],
-                  ),
+
+                // Frequência
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.repeat,
+                      size: 16,
+                      color: Colors.grey[600],
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      medication.frequency,
+                      style: settings.getTextStyle(
+                        size: 14,
+                        color: Colors.grey[600],
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
+
+            // Observações
             if (medication.notes != null && medication.notes!.isNotEmpty) ...[
               const SizedBox(height: 8),
-              Text(
-                'Observações: ${medication.notes}',
-                style: settings.getTextStyle(
-                  size: 14,
-                  color: Colors.grey[700],
-                  fontStyle: FontStyle.italic,
-                ),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(
+                    Icons.note,
+                    size: 16,
+                    color: Colors.grey[600],
+                  ),
+                  const SizedBox(width: 4),
+                  Expanded(
+                    child: Text(
+                      medication.notes!,
+                      style: settings.getTextStyle(
+                        size: 14,
+                        color: Colors.grey[700],
+                        fontStyle: FontStyle.italic,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                      maxLines: 2,
+                    ),
+                  ),
+                ],
               ),
             ],
           ],

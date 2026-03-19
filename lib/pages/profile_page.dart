@@ -839,37 +839,63 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
-  Widget _buildInfoRow(String label, String value, {bool isBold = false}) {
-    final settings = Provider.of<SettingsService>(context, listen: false);
-    
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            width: 150,
-            child: Text(
+  Widget _buildInfoRow(String label, String value, 
+    {bool isBold = false, IconData? icon}) {  // <-- Adicionar o parâmetro icon aqui
+  final settings = Provider.of<SettingsService>(context, listen: false);
+  
+  return Container(
+    margin: const EdgeInsets.only(bottom: 16),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Label com ícone
+        Row(
+          children: [
+            if (icon != null) ...[
+              Icon(icon, size: 18, color: const Color(0xFF0D47A1)),
+              const SizedBox(width: 6),
+            ],
+            Text(
               label,
               style: settings.getTextStyle(
+                size: 14,
                 fontWeight: FontWeight.w600,
-                color: const Color(0xFF424242), // Cinza escuro
+                color: const Color(0xFF616161),
               ),
             ),
-          ),
-          Expanded(
-            child: Text(
-              value,
-              style: settings.getTextStyle(
-                fontWeight: isBold ? FontWeight.bold : FontWeight.normal,
-                color: isBold ? Colors.black : const Color(0xFF212121),
+          ],
+        ),
+        const SizedBox(height: 4),
+        // Valor em container destacado
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 14),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: Colors.grey[300]!),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.grey.withOpacity(0.1),
+                spreadRadius: 1,
+                blurRadius: 2,
+                offset: const Offset(0, 1),
               ),
+            ],
+          ),
+          child: Text(
+            value,
+            style: settings.getTextStyle(
+              size: 16,
+              fontWeight: isBold ? FontWeight.bold : FontWeight.normal,
+              color: isBold ? Colors.black : const Color(0xFF212121),
             ),
           ),
-        ],
-      ),
-    );
-  }
+        ),
+      ],
+    ),
+  );
+}
 
   Widget _buildPhoneHint() {
     final settings = Provider.of<SettingsService>(context);
@@ -1116,12 +1142,28 @@ class _ProfilePageState extends State<ProfilePage> {
                                 },
                               ),
                             ] else ...[
-                              // Modo visualização
-                              _buildInfoRow('Nome completo:', _nameController.text, isBold: true),
-                              _buildInfoRow('E-mail:', _emailController.text),
-                              _buildInfoRow('Telefone:', _phoneController.text.isNotEmpty ? _phoneController.text : 'Não informado'),
-                              _buildInfoRow('Idade:', _ageController.text.isNotEmpty ? _ageController.text : 'Não informada'),
-                              _buildInfoRow('Tipo Sanguíneo:', _bloodTypeController.text.isNotEmpty ? _bloodTypeController.text : 'Não informado'),
+                              // Informações Pessoais
+                              _buildInfoRow('Nome completo:', _nameController.text, 
+                                  isBold: true, 
+                                  icon: Icons.person),
+                              
+                              _buildInfoRow('E-mail:', _emailController.text, 
+                                  icon: Icons.email),
+                              
+                              _buildInfoRow('Telefone:', _phoneController.text.isNotEmpty 
+                                  ? _phoneController.text 
+                                  : 'Não informado', 
+                                  icon: Icons.phone),
+                              
+                              _buildInfoRow('Idade:', _ageController.text.isNotEmpty 
+                                  ? _ageController.text 
+                                  : 'Não informada', 
+                                  icon: Icons.cake),
+                              
+                              _buildInfoRow('Tipo Sanguíneo:', _bloodTypeController.text.isNotEmpty 
+                                  ? _bloodTypeController.text 
+                                  : 'Não informado', 
+                                  icon: Icons.bloodtype),
                             ],
                           ],
                         ),
@@ -1190,8 +1232,16 @@ class _ProfilePageState extends State<ProfilePage> {
                                 ],
                               ),
                             ] else ...[
-                              _buildInfoRow('Nome:', _emergencyNameController.text.isNotEmpty ? _emergencyNameController.text : 'Não informado', isBold: true),
-                              _buildInfoRow('Telefone:', _emergencyPhoneController.text.isNotEmpty ? _emergencyPhoneController.text : 'Não informado'),
+                              _buildInfoRow('Nome:', _emergencyNameController.text.isNotEmpty 
+                                  ? _emergencyNameController.text 
+                                  : 'Não informado', 
+                                  isBold: true, 
+                                  icon: Icons.contact_emergency),
+                              
+                              _buildInfoRow('Telefone:', _emergencyPhoneController.text.isNotEmpty 
+                                  ? _emergencyPhoneController.text 
+                                  : 'Não informado', 
+                                  icon: Icons.phone),
                             ],
                           ],
                         ),
