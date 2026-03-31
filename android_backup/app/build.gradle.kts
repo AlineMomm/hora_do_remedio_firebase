@@ -1,10 +1,3 @@
-plugins {
-    id("com.android.application")
-    id("org.jetbrains.kotlin.android")
-    id("com.google.gms.google-services")
-    id("dev.flutter.flutter-gradle-plugin")
-}
-
 android {
     namespace = "com.senai.hora_do_remedio"
     compileSdk = flutter.compileSdkVersion
@@ -37,12 +30,4 @@ android {
             signingConfig = signingConfigs.getByName("debug")
         }
     }
-}
-
-flutter {
-    source = "../.."
-}
-
-dependencies {
-    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
 }

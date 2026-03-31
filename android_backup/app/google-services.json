@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "828522686230",
+    "project_id": "hora-do-remedio-165b3",
+    "storage_bucket": "hora-do-remedio-165b3.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:828522686230:android:1376d1593159d158671237",
+        "android_client_info": {
+          "package_name": "com.senai.hora_do_remedio"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC_gGil9MXuz6agSXHC05vTS8c9FV7i07s"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

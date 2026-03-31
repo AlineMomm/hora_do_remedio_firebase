@@ -840,7 +840,7 @@ Future<void> _markAsTaken(MedicationModel medication) async {
 
           const SizedBox(height: 12),
 
-          // Botão TOMAR (se NÃO foi tomado hoje) - SEMPRE VISÍVEL quando não tomado
+          // Botão TOMAR
           if (!wasTaken)
             SizedBox(
               width: double.infinity,

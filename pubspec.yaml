@@ -9,33 +9,22 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  
-  # Core
+
   shared_preferences: ^2.2.2
   connectivity_plus: ^5.0.2
   cupertino_icons: ^1.0.2
-  
-  # Firebase - versões testadas
+
   firebase_core: 2.15.1
   firebase_auth: 4.9.0
   cloud_firestore: 4.9.1
-  
-  # Secure Storage
+
   flutter_secure_storage: ^9.0.0
-
-  #Foto perfil
   image_picker: ^1.0.4
-  image_picker_web: ^4.0.0
-  image_picker_for_web: ^3.0.4
-
-  # Provider para gerenciamento de estado
   provider: ^6.1.1
 
-  #notificações
   flutter_local_notifications: ^17.2.1
   firebase_messaging: ^14.6.7
   permission_handler: ^11.3.1
-  web: ^1.0.0
 
 dev_dependencies:
   flutter_test:
