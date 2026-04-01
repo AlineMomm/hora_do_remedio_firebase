@@ -419,9 +419,18 @@ void _onSyncChange() {
 
   // Botão de adicionar medicamento
   Widget _buildAddButton(SettingsService settings) {
-    return Container(
+  final bottomInset = MediaQuery.of(context).padding.bottom;
+
+  return SafeArea(
+    top: false,
+    child: Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(16),
+      padding: EdgeInsets.fromLTRB(
+        16,
+        16,
+        16,
+        bottomInset > 0 ? bottomInset + 8 : 16,
+      ),
       decoration: BoxDecoration(
         color: Colors.white,
         boxShadow: [
@@ -436,7 +445,7 @@ void _onSyncChange() {
       child: ElevatedButton(
         onPressed: _navigateToAddMedication,
         style: settings.getElevatedButtonStyle(
-          backgroundColor: const Color(0xFF2E7D32), // Verde escuro
+          backgroundColor: const Color(0xFF2E7D32),
           foregroundColor: Colors.white,
         ),
         child: Row(
@@ -447,7 +456,7 @@ void _onSyncChange() {
               size: settings.iconSize,
               color: Colors.white,
             ),
-            SizedBox(width: 8),
+            const SizedBox(width: 8),
             Expanded(
               child: Text(
                 'ADICIONAR MEDICAMENTO',
@@ -462,12 +471,11 @@ void _onSyncChange() {
               ),
             ),
           ],
-        )
+        ),
       ),
-    );
-  }
-  // lib/pages/medication_list_page.dart
-// Adicione este método DENTRO da classe _MedicationListPageState
+    ),
+  );
+}
 
 Future<void> _markAsTaken(MedicationModel medication) async {
   try {

@@ -482,25 +482,37 @@ class _ProfilePageState extends State<ProfilePage> {
         await _storage.saveUser(profileData);
         print('✅ Perfil salvo localmente');
 
-        if (_isCloudUser && _cloudUserId != null) {
+        final currentCloudUserId = await _syncService.getCloudUserId();
+
+        if (currentCloudUserId != null) {
           final userModel = UserModel(
-            uid: _cloudUserId!,
+            uid: currentCloudUserId,
             name: _nameController.text.trim(),
             email: _emailController.text.trim(),
-            phone: cleanPhone,
+            phone: cleanPhone.isEmpty ? null : cleanPhone,
             age: int.tryParse(_ageController.text.trim()),
-            bloodType: _bloodTypeController.text.trim(),
-            emergencyContactName: _emergencyNameController.text.trim(),
-            emergencyContactPhone: cleanEmergencyPhone,
-            observations: _observationsController.text.trim(),
+            bloodType: _bloodTypeController.text.trim().isEmpty
+                ? null
+                : _bloodTypeController.text.trim(),
+            emergencyContactName: _emergencyNameController.text.trim().isEmpty
+                ? null
+                : _emergencyNameController.text.trim(),
+            emergencyContactPhone: cleanEmergencyPhone.isEmpty
+                ? null
+                : cleanEmergencyPhone,
+            observations: _observationsController.text.trim().isEmpty
+                ? null
+                : _observationsController.text.trim(),
             profileImageUrl: _profileImageBase64,
           );
-          
+        
           await _syncService.updateUserProfileInCloud(userModel);
           print('✅ Perfil salvo na nuvem');
-          
+        
           setState(() {
             _cloudUserData = userModel;
+            _cloudUserId = currentCloudUserId;
+            _isCloudUser = true;
           });
         }
 
@@ -986,8 +998,14 @@ class _ProfilePageState extends State<ProfilePage> {
                 ],
               ),
             )
-          : SingleChildScrollView(
-              padding: const EdgeInsets.all(24),
+          : SafeArea(
+            child: SingleChildScrollView(
+              padding: EdgeInsets.fromLTRB(
+                24,
+                24,
+                24,
+                24 + MediaQuery.of(context).padding.bottom + 24,
+              ),
               child: Form(
                 key: _formKey,
                 child: Column(
@@ -1143,12 +1161,18 @@ class _ProfilePageState extends State<ProfilePage> {
                               ),
                             ] else ...[
                               // Informações Pessoais
-                              _buildInfoRow('Nome completo:', _nameController.text, 
-                                  isBold: true, 
-                                  icon: Icons.person),
+                              _buildInfoRow(
+                                'Nome completo:',
+                                _nameController.text.isNotEmpty ? _nameController.text : 'Não informado',
+                                isBold: true,
+                                icon: Icons.person,
+                              ),
                               
-                              _buildInfoRow('E-mail:', _emailController.text, 
-                                  icon: Icons.email),
+                              _buildInfoRow(
+                                'E-mail:',
+                                _emailController.text.isNotEmpty ? _emailController.text : 'Não informado',
+                                icon: Icons.email,
+                              ),
                               
                               _buildInfoRow('Telefone:', _phoneController.text.isNotEmpty 
                                   ? _phoneController.text 
@@ -1312,39 +1336,51 @@ class _ProfilePageState extends State<ProfilePage> {
                     ),
                     const SizedBox(height: 30),
 
-                      // Botão Salvar Online
                       if (!_isCloudUser) ...[
                         Center(
-                          child: Container(
-                            width: 280,
-                            height: 48,
-                            margin: const EdgeInsets.symmetric(vertical: 8),
-                            child: ElevatedButton(
-                              onPressed: _navigateToCloudLogin,
-                              style: settings.getElevatedButtonStyle(
-                                backgroundColor: const Color(0xFF2E7D32), // Verde escuro
-                                foregroundColor: Colors.white,
-                              ),
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  const Icon(Icons.cloud_upload, size: 22),
-                                  const SizedBox(width: 8),
-                                  Text(
-                                    'SALVAR ONLINE',
-                                    style: settings.getTextStyle(
-                                      size: settings.buttonFontSize,
-                                      fontWeight: FontWeight.bold,
-                                      color: Colors.white,
-                                    ),
+                          child: ConstrainedBox(
+                            constraints: const BoxConstraints(maxWidth: 360),
+                            child: SizedBox(
+                              width: double.infinity,
+                              child: ElevatedButton(
+                                onPressed: _navigateToCloudLogin,
+                                style: settings.getElevatedButtonStyle(
+                                  backgroundColor: const Color(0xFF2E7D32),
+                                  foregroundColor: Colors.white,
+                                ).copyWith(
+                                  padding: WidgetStateProperty.all(
+                                    const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                                   ),
-                                ],
+                                  minimumSize: WidgetStateProperty.all(
+                                    const Size(double.infinity, 56),
+                                  ),
+                                ),
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    const Icon(Icons.cloud_upload, size: 22, color: Colors.white),
+                                    const SizedBox(width: 8),
+                                    Flexible(
+                                      child: FittedBox(
+                                        fit: BoxFit.scaleDown,
+                                        child: Text(
+                                          'SALVAR ONLINE',
+                                          maxLines: 1,
+                                          textAlign: TextAlign.center,
+                                          style: settings.getTextStyle(
+                                            size: settings.buttonFontSize,
+                                            fontWeight: FontWeight.bold,
+                                            color: Colors.white,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
                               ),
                             ),
                           ),
                         ),
-                        
                         const Padding(
                           padding: EdgeInsets.only(top: 4, bottom: 16),
                           child: Text(
@@ -1411,6 +1447,7 @@ class _ProfilePageState extends State<ProfilePage> {
                 ),
               ),
             ),
+    )
     );
   }
 

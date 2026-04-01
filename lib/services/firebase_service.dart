@@ -243,15 +243,20 @@ class FirebaseService {
 
   // ==================== PERFIL ====================
   Future<void> updateUserProfile(UserModel user) async {
-    try {
-      if (!_isInitialized) _initInstances();
-      await _firestore.collection('users').doc(user.uid).update(user.toMap());
-      print('✅ Perfil atualizado no Firebase');
-    } catch (e) {
-      print('❌ Erro ao atualizar perfil: $e');
-      throw 'Erro ao atualizar perfil na nuvem';
-    }
+  try {
+    if (!_isInitialized) _initInstances();
+
+    await _firestore.collection('users').doc(user.uid).set(
+      user.toMap(),
+      SetOptions(merge: true),
+    );
+
+    print('✅ Perfil atualizado no Firebase: ${user.uid}');
+  } catch (e) {
+    print('❌ Erro ao atualizar perfil: $e');
+    throw 'Erro ao atualizar perfil na nuvem';
   }
+}
 
   Future<UserModel?> getUserProfile(String uid) async {
     try {

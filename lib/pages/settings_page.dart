@@ -28,7 +28,8 @@ class _SettingsPageState extends State<SettingsPage> {
   @override
   Widget build(BuildContext context) {
     final settings = Provider.of<SettingsService>(context);
-    
+    final bottomInset = MediaQuery.of(context).viewPadding.bottom;
+
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
@@ -46,122 +47,124 @@ class _SettingsPageState extends State<SettingsPage> {
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
-          : SingleChildScrollView(
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _buildSectionHeader(
-                    icon: Icons.text_fields,
-                    title: 'Tamanho da Fonte',
-                    subtitle: 'Aumente ou diminua o texto para facilitar a leitura',
-                  ),
-                  
-                  const SizedBox(height: 10),
-                  
-                  ...FontSize.values.map((size) {
-                    return _buildFontSizeOption(size, settings);
-                  }),
-                  
-                  const SizedBox(height: 30),
-                  
-                  _buildSectionHeader(
-                    icon: Icons.preview,
-                    title: 'Prévia do texto',
-                    subtitle: 'Veja como o texto ficará com as configurações atuais',
-                  ),
-                  
-                  const SizedBox(height: 10),
-                  
-                  Card(
-                    elevation: 2,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
+          : SafeArea(
+              top: false,
+              bottom: true,
+              child: SingleChildScrollView(
+                padding: EdgeInsets.fromLTRB(
+                  20,
+                  20,
+                  20,
+                  20 + bottomInset,
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildSectionHeader(
+                      icon: Icons.text_fields,
+                      title: 'Tamanho da Fonte',
+                      subtitle:
+                          'Aumente ou diminua o texto para facilitar a leitura',
                     ),
-                    child: Padding(
-                      padding: const EdgeInsets.all(20),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Exemplo de texto',
-                            style: settings.getTextStyle(
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            'Este é um exemplo de como o texto ficará com o tamanho selecionado. Você pode ajustar até encontrar o tamanho mais confortável para ler.',
-                            style: settings.getTextStyle(),
-                          ),
-                          const SizedBox(height: 16),
-                          Container(
-                            padding: const EdgeInsets.all(12),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFE8F0FE),
-                              borderRadius: BorderRadius.circular(8),
-                              border: Border.all(
-                                color: const Color(0xFF0D47A1),
+                    const SizedBox(height: 10),
+                    ...FontSize.values.map((size) {
+                      return _buildFontSizeOption(size, settings);
+                    }),
+                    const SizedBox(height: 30),
+                    _buildSectionHeader(
+                      icon: Icons.preview,
+                      title: 'Prévia do texto',
+                      subtitle:
+                          'Veja como o texto ficará com as configurações atuais',
+                    ),
+                    const SizedBox(height: 10),
+                    Card(
+                      elevation: 2,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.all(20),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Exemplo de texto',
+                              style: settings.getTextStyle(
+                                fontWeight: FontWeight.bold,
                               ),
                             ),
-                            child: Row(
-                              children: [
-                                const Icon(
-                                  Icons.info,
-                                  color: Color(0xFF0D47A1),
+                            const SizedBox(height: 8),
+                            Text(
+                              'Este é um exemplo de como o texto ficará com o tamanho selecionado. Você pode ajustar até encontrar o tamanho mais confortável para ler.',
+                              style: settings.getTextStyle(),
+                            ),
+                            const SizedBox(height: 16),
+                            Container(
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFE8F0FE),
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(
+                                  color: const Color(0xFF0D47A1),
                                 ),
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  child: Text(
-                                    'Os botões também ficam maiores com o aumento da fonte.',
-                                    style: settings.getTextStyle(
-                                      color: const Color(0xFF0D47A1),
+                              ),
+                              child: Row(
+                                children: [
+                                  const Icon(
+                                    Icons.info,
+                                    color: Color(0xFF0D47A1),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Text(
+                                      'Os botões também ficam maiores com o aumento da fonte.',
+                                      style: settings.getTextStyle(
+                                        color: const Color(0xFF0D47A1),
+                                      ),
                                     ),
                                   ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  
-                  const SizedBox(height: 30),
-                  
-                  Center(
-                    child: SizedBox(
-                      width: 200,
-                      height: settings.buttonHeight,
-                      child: ElevatedButton(
-                        onPressed: () {
-                          Navigator.pop(context);
-                        },
-                        style: settings.getElevatedButtonStyle(
-                          backgroundColor: const Color(0xFF1565C0),
-                          foregroundColor: Colors.white,
-                        ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            const Icon(Icons.arrow_back, size: 20),
-                            const SizedBox(width: 8),
-                            Text(
-                              'VOLTAR',
-                              style: settings.getTextStyle(
-                                size: settings.buttonFontSize,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white,
+                                ],
                               ),
                             ),
                           ],
                         ),
                       ),
                     ),
-                  ),
-                  
-                  const SizedBox(height: 20),
-                ],
+                    const SizedBox(height: 30),
+                    Center(
+                      child: SizedBox(
+                        width: 200,
+                        height: settings.buttonHeight,
+                        child: ElevatedButton(
+                          onPressed: () {
+                            Navigator.pop(context);
+                          },
+                          style: settings.getElevatedButtonStyle(
+                            backgroundColor: const Color(0xFF1565C0),
+                            foregroundColor: Colors.white,
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              const Icon(Icons.arrow_back, size: 20),
+                              const SizedBox(width: 8),
+                              Text(
+                                'VOLTAR',
+                                style: settings.getTextStyle(
+                                  size: settings.buttonFontSize,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                  ],
+                ),
               ),
             ),
     );
@@ -173,7 +176,7 @@ class _SettingsPageState extends State<SettingsPage> {
     required String subtitle,
   }) {
     final settings = Provider.of<SettingsService>(context, listen: false);
-    
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -192,12 +195,14 @@ class _SettingsPageState extends State<SettingsPage> {
               ),
             ),
             const SizedBox(width: 12),
-            Text(
-              title,
-              style: settings.getTextStyle(
-                size: 22,
-                fontWeight: FontWeight.bold,
-                color: const Color(0xFF0D47A1),
+            Expanded(
+              child: Text(
+                title,
+                style: settings.getTextStyle(
+                  size: 22,
+                  fontWeight: FontWeight.bold,
+                  color: const Color(0xFF0D47A1),
+                ),
               ),
             ),
           ],
@@ -219,7 +224,7 @@ class _SettingsPageState extends State<SettingsPage> {
 
   Widget _buildFontSizeOption(FontSize size, SettingsService settings) {
     final isSelected = settings.currentFontSize == size;
-    
+
     return Card(
       elevation: isSelected ? 4 : 1,
       shape: RoundedRectangleBorder(
@@ -239,8 +244,8 @@ class _SettingsPageState extends State<SettingsPage> {
                 width: 60,
                 height: 60,
                 decoration: BoxDecoration(
-                  color: isSelected 
-                      ? const Color(0xFF0D47A1) 
+                  color: isSelected
+                      ? const Color(0xFF0D47A1)
                       : Colors.grey[200],
                   borderRadius: BorderRadius.circular(10),
                 ),
@@ -248,11 +253,15 @@ class _SettingsPageState extends State<SettingsPage> {
                   child: Text(
                     'A',
                     style: TextStyle(
-                      fontSize: size == FontSize.pequeno ? 20
-                          : size == FontSize.normal ? 24
-                          : size == FontSize.grande ? 28
-                          : size == FontSize.muitoGrande ? 32
-                          : 36,
+                      fontSize: size == FontSize.pequeno
+                          ? 20
+                          : size == FontSize.normal
+                              ? 24
+                              : size == FontSize.grande
+                                  ? 28
+                                  : size == FontSize.muitoGrande
+                                      ? 32
+                                      : 36,
                       fontWeight: FontWeight.bold,
                       color: isSelected ? Colors.white : Colors.black,
                     ),
@@ -265,9 +274,10 @@ class _SettingsPageState extends State<SettingsPage> {
                   size.label,
                   style: settings.getTextStyle(
                     size: 20,
-                    fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                    color: isSelected 
-                        ? const Color(0xFF0D47A1) 
+                    fontWeight:
+                        isSelected ? FontWeight.bold : FontWeight.normal,
+                    color: isSelected
+                        ? const Color(0xFF0D47A1)
                         : const Color(0xFF212121),
                   ),
                 ),

@@ -6,27 +6,29 @@ class HelpPage extends StatelessWidget {
   const HelpPage({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    final settings = Provider.of<SettingsService>(context);
-    
-    return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: AppBar(
-        title: Text(
-          'Ajuda e Como Usar',
-          style: settings.getTextStyle(
-            size: 20,
-            fontWeight: FontWeight.bold,
-            color: Colors.white,
-          ),
+Widget build(BuildContext context) {
+  final settings = Provider.of<SettingsService>(context);
+  final bottomInset = MediaQuery.of(context).padding.bottom;
+
+  return Scaffold(
+    backgroundColor: Colors.white,
+    appBar: AppBar(
+      title: Text(
+        'Ajuda e Como Usar',
+        style: settings.getTextStyle(
+          size: 20,
+          fontWeight: FontWeight.bold,
+          color: Colors.white,
         ),
-        backgroundColor: const Color(0xFF1565C0),
-        foregroundColor: Colors.white,
-        elevation: 2,
-        centerTitle: true,
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
+      backgroundColor: const Color(0xFF1565C0),
+      foregroundColor: Colors.white,
+      elevation: 2,
+      centerTitle: true,
+    ),
+    body: SafeArea(
+      child: SingleChildScrollView(
+        padding: EdgeInsets.fromLTRB(20, 20, 20, 20 + bottomInset + 24),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -40,8 +42,9 @@ class HelpPage extends StatelessWidget {
           ],
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 
   Widget _buildWelcomeSection(SettingsService settings) {
     return Card(

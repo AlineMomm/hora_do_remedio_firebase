@@ -1,15 +1,15 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart'; // Adicionar este import
+import 'package:provider/provider.dart';
 import '../services/medication_service.dart';
 import '../models/medication_model.dart';
-import '../services/settings_service.dart'; // Adicionar este import
+import '../services/settings_service.dart';
 
 class AddMedicationPage extends StatefulWidget {
   final MedicationModel? medication;
   final String localUserId;
-  
+
   const AddMedicationPage({
-    super.key, 
+    super.key,
     this.medication,
     required this.localUserId,
   });
@@ -23,10 +23,10 @@ class _AddMedicationPageState extends State<AddMedicationPage> {
   final _nameController = TextEditingController();
   final _notesController = TextEditingController();
   final _medicationService = MedicationService();
-  
+
   TimeOfDay _selectedTime = TimeOfDay.now();
   String _selectedFrequency = 'Diário';
-  
+
   final List<String> _frequencies = [
     'Diário',
     'A cada 12 horas',
@@ -43,7 +43,7 @@ class _AddMedicationPageState extends State<AddMedicationPage> {
   void initState() {
     super.initState();
     _isEditing = widget.medication != null;
-    
+
     if (_isEditing) {
       _nameController.text = widget.medication!.name;
       _notesController.text = widget.medication?.notes ?? '';
@@ -57,7 +57,7 @@ class _AddMedicationPageState extends State<AddMedicationPage> {
       context: context,
       initialTime: _selectedTime,
     );
-    
+
     if (picked != null && picked != _selectedTime) {
       setState(() {
         _selectedTime = picked;
@@ -79,7 +79,9 @@ class _AddMedicationPageState extends State<AddMedicationPage> {
           hour: _selectedTime.hour,
           minute: _selectedTime.minute,
           frequency: _selectedFrequency,
-          notes: _notesController.text.trim().isEmpty ? null : _notesController.text.trim(),
+          notes: _notesController.text.trim().isEmpty
+              ? null
+              : _notesController.text.trim(),
           createdAt: _isEditing ? widget.medication!.createdAt : DateTime.now(),
         );
 
@@ -90,22 +92,22 @@ class _AddMedicationPageState extends State<AddMedicationPage> {
         }
 
         if (!mounted) return;
-        
+
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              _isEditing 
-                  ? 'Medicamento atualizado com sucesso!' 
-                  : 'Medicamento salvo com sucesso!'
+              _isEditing
+                  ? 'Medicamento atualizado com sucesso!'
+                  : 'Medicamento salvo com sucesso!',
             ),
             backgroundColor: const Color(0xFF4CAF50),
           ),
         );
-        
+
         Navigator.pop(context);
       } catch (e) {
         if (!mounted) return;
-        
+
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Erro: $e'),
@@ -114,143 +116,138 @@ class _AddMedicationPageState extends State<AddMedicationPage> {
           ),
         );
       } finally {
-        setState(() {
-          _isLoading = false;
-        });
+        if (mounted) {
+          setState(() {
+            _isLoading = false;
+          });
+        }
       }
     }
   }
 
-@override
-Widget build(BuildContext context) {
-  final settings = Provider.of<SettingsService>(context);
-  
-  return Scaffold(
-    appBar: AppBar(
-      title: Text(
-        _isEditing ? 'Editar Medicamento' : 'Novo Medicamento',
-        style: settings.getTextStyle(
-          fontWeight: FontWeight.bold,
-          color: Colors.white,
+  @override
+  Widget build(BuildContext context) {
+    final settings = Provider.of<SettingsService>(context);
+    final bottomInset = MediaQuery.of(context).viewPadding.bottom;
+
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(
+          _isEditing ? 'Editar Medicamento' : 'Novo Medicamento',
+          style: settings.getTextStyle(
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
+          ),
         ),
+        foregroundColor: Colors.white,
       ),
-      foregroundColor: Colors.white,
-    ),
-    body: SafeArea(
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            children: [
-              TextFormField(
-                controller: _nameController,
-                decoration: InputDecoration(
-                  labelText: 'Nome do medicamento*',
-                  prefixIcon: Icon(
-                    Icons.medical_services, 
+      body: SafeArea(
+        top: false,
+        bottom: true,
+        child: SingleChildScrollView(
+          padding: EdgeInsets.fromLTRB(
+            24,
+            24,
+            24,
+            24 + bottomInset,
+          ),
+          child: Form(
+            key: _formKey,
+            child: Column(
+              children: [
+                TextFormField(
+                  controller: _nameController,
+                  decoration: const InputDecoration(
+                    labelText: 'Nome do medicamento*',
+                    prefixIcon: Icon(Icons.medical_services),
                   ),
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Por favor, digite o nome do medicamento';
+                    }
+                    return null;
+                  },
                 ),
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Por favor, digite o nome do medicamento';
-                  }
-                  return null;
-                },
-              ),
-              
-              const SizedBox(height: 20),
-              
-              InkWell(
-                onTap: _selectTime,
-                child: InputDecorator(
-                  decoration: InputDecoration(
-                    labelText: 'Horário*',
-                    prefixIcon: Icon(
-                      Icons.access_time, 
+                const SizedBox(height: 20),
+                InkWell(
+                  onTap: _selectTime,
+                  child: InputDecorator(
+                    decoration: const InputDecoration(
+                      labelText: 'Horário*',
+                      prefixIcon: Icon(Icons.access_time),
+                      border: OutlineInputBorder(),
                     ),
-                    border: const OutlineInputBorder(),
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        _selectedTime.format(context),
-                        style: settings.getTextStyle(
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          _selectedTime.format(context),
+                          style: settings.getTextStyle(),
                         ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              
-              const SizedBox(height: 20),
-              
-              DropdownButtonFormField<String>(
-                value: _selectedFrequency,
-                items: _frequencies.map((String frequency) {
-                  return DropdownMenuItem<String>(
-                    value: frequency,
-                    child: Text(
-                      frequency,
+                      ],
                     ),
-                  );
-                }).toList(),
-                onChanged: (String? newValue) {
-                  if (newValue != null) {
-                    setState(() {
-                      _selectedFrequency = newValue;
-                    });
-                  }
-                },
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Por favor, selecione a frequência';
-                  }
-                  return null;
-                },
-              ),
-              
-              const SizedBox(height: 20),
-              
-              TextFormField(
-                controller: _notesController,
-                decoration: InputDecoration(
-                  labelText: 'Observações (opcional)',
+                  ),
                 ),
-                maxLines: 3,
-              ),
-              
-              const SizedBox(height: 32),
-              
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: _isLoading ? null : _saveMedication,
-                  child: _isLoading
-                      ? SizedBox(
-                          height: settings.buttonFontSize,
-                          width: settings.buttonFontSize,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                          ),
-                        )
-                      : Text(
-                          _isEditing ? 'ATUALIZAR' : 'CADASTRAR',
-                          style: settings.getTextStyle(
-                            size: settings.buttonFontSize,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
+                const SizedBox(height: 20),
+                DropdownButtonFormField<String>(
+                  value: _selectedFrequency,
+                  items: _frequencies.map((String frequency) {
+                    return DropdownMenuItem<String>(
+                      value: frequency,
+                      child: Text(frequency),
+                    );
+                  }).toList(),
+                  onChanged: (String? newValue) {
+                    if (newValue != null) {
+                      setState(() {
+                        _selectedFrequency = newValue;
+                      });
+                    }
+                  },
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Por favor, selecione a frequência';
+                    }
+                    return null;
+                  },
                 ),
-              ),
-            ],
+                const SizedBox(height: 20),
+                TextFormField(
+                  controller: _notesController,
+                  decoration: const InputDecoration(
+                    labelText: 'Observações (opcional)',
+                  ),
+                  maxLines: 3,
+                ),
+                const SizedBox(height: 32),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: _isLoading ? null : _saveMedication,
+                    child: _isLoading
+                        ? SizedBox(
+                            height: settings.buttonFontSize,
+                            width: settings.buttonFontSize,
+                            child: const CircularProgressIndicator(
+                              strokeWidth: 2,
+                            ),
+                          )
+                        : Text(
+                            _isEditing ? 'ATUALIZAR' : 'CADASTRAR',
+                            style: settings.getTextStyle(
+                              size: settings.buttonFontSize,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
-    ),
-  );
-}
+    );
+  }
 
   @override
   void dispose() {
