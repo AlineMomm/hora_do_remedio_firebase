@@ -41,7 +41,19 @@ class _ProfilePageState extends State<ProfilePage> {
   late TextEditingController _emergencyPhoneController;
   late TextEditingController _observationsController;
 
-  bool _isEditing = false;
+  bool _isSaving = false;
+
+  String _initialName = '';
+  String _initialEmail = '';
+  String _initialPhone = '';
+  String _initialAge = '';
+  String _initialBloodType = '';
+  String _initialEmergencyName = '';
+  String _initialEmergencyPhone = '';
+  String _initialObservations = '';
+  String? _initialProfileImageBase64;
+
+
   bool _isLoading = false;
   bool _isCloudUser = false;
   
@@ -84,7 +96,8 @@ class _ProfilePageState extends State<ProfilePage> {
       await _loadCloudUserData();
       await _loadLocalProfile();
     }
-    
+
+    _captureInitialProfileState();
   } catch (e) {
     print('❌ Erro ao carregar dados: $e');
   } finally {
@@ -337,14 +350,93 @@ class _ProfilePageState extends State<ProfilePage> {
     _emergencyPhoneController.addListener(_onEmergencyPhoneChanged);
   }
 
-  void _toggleEdit() {
-    setState(() {
-      _isEditing = !_isEditing;
-      if (!_isEditing) {
-        _checkCloudStatusAndLoadData();
-      }
-    });
+  void _captureInitialProfileState() {
+  _initialName = _nameController.text.trim();
+  _initialEmail = _emailController.text.trim();
+  _initialPhone = _lastPhoneRawValue.trim();
+  _initialAge = _ageController.text.trim();
+  _initialBloodType = _bloodTypeController.text.trim();
+  _initialEmergencyName = _emergencyNameController.text.trim();
+  _initialEmergencyPhone = _lastEmergencyPhoneRawValue.trim();
+  _initialObservations = _observationsController.text.trim();
+  _initialProfileImageBase64 = _profileImageBase64;
+}
+
+bool _hasUnsavedChanges() {
+  return _nameController.text.trim() != _initialName ||
+      _emailController.text.trim() != _initialEmail ||
+      _lastPhoneRawValue.trim() != _initialPhone ||
+      _ageController.text.trim() != _initialAge ||
+      _bloodTypeController.text.trim() != _initialBloodType ||
+      _emergencyNameController.text.trim() != _initialEmergencyName ||
+      _lastEmergencyPhoneRawValue.trim() != _initialEmergencyPhone ||
+      _observationsController.text.trim() != _initialObservations ||
+      _profileImageBase64 != _initialProfileImageBase64;
+}
+
+Future<bool> _handleExitAttempt() async {
+  if (_isSaving) return false;
+
+  if (!_hasUnsavedChanges()) {
+    return true;
   }
+
+  final action = await showDialog<String>(
+    context: context,
+    barrierDismissible: false,
+    builder: (context) => AlertDialog(
+      title: const Text(
+        'Salvar alterações?',
+        style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+      ),
+      content: const Text(
+        'Você alterou informações pessoais, deseja salvar?',
+        style: TextStyle(fontSize: 16),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context, 'cancel'),
+          child: const Text('Cancelar'),
+        ),
+        TextButton(
+          onPressed: () => Navigator.pop(context, 'discard'),
+          child: const Text(
+            'Sair sem salvar',
+            style: TextStyle(color: Color(0xFFD32F2F)),
+          ),
+        ),
+        ElevatedButton(
+          onPressed: () => Navigator.pop(context, 'save'),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: const Color(0xFF2E7D32),
+            foregroundColor: Colors.white,
+          ),
+          child: const Text('Salvar e sair'),
+        ),
+      ],
+    ),
+  );
+
+  if (action == 'save') {
+    final saved = await _saveProfile(closeAfterSave: false);
+    return saved;
+  }
+
+  if (action == 'discard') {
+    return true;
+  }
+
+  return false;
+}
+
+Future<void> _tryExitPage() async {
+  final shouldExit = await _handleExitAttempt();
+  if (!mounted) return;
+
+  if (shouldExit) {
+    Navigator.of(context).pop();
+  }
+}
 
   Future<void> _pickImage(ImageSource source) async {
     setState(() {
@@ -440,109 +532,124 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   Future<void> _navigateToCloudLogin() async {
-  final result = await Navigator.push(
+    await Navigator.push(
     context,
     MaterialPageRoute(
       builder: (context) => CloudLoginPage(
         onLoginSuccess: () {
-          // Após login bem-sucedido, recarregar dados
-          _checkCloudStatusAndLoadData();
+          if (mounted) {
+            _checkCloudStatusAndLoadData();
+          }
         },
       ),
     ),
   );
 
-  _checkCloudStatusAndLoadData();
+  if (mounted) {
+    _checkCloudStatusAndLoadData();
+  }
 }
 
-  Future<void> _saveProfile() async {
-    if (_formKey.currentState!.validate()) {
+  Future<bool> _saveProfile({bool closeAfterSave = false}) async {
+  if (!_formKey.currentState!.validate()) {
+    return false;
+  }
+
+  setState(() {
+    _isLoading = true;
+    _isSaving = true;
+  });
+
+  try {
+    final cleanPhone = _unformatPhoneNumber(_phoneController.text);
+    final cleanEmergencyPhone =
+        _unformatPhoneNumber(_emergencyPhoneController.text);
+
+    final profileData = {
+      'uid': _profileId,
+      'name': _nameController.text.trim(),
+      'email': _emailController.text.trim(),
+      'phone': cleanPhone,
+      'age': int.tryParse(_ageController.text.trim()),
+      'bloodType': _bloodTypeController.text.trim(),
+      'emergencyContactName': _emergencyNameController.text.trim(),
+      'emergencyContactPhone': cleanEmergencyPhone,
+      'observations': _observationsController.text.trim(),
+      'profileImage': _profileImageBase64,
+      'lastSync': DateTime.now().millisecondsSinceEpoch,
+    };
+
+    await _storage.saveUser(profileData);
+    print('✅ Perfil salvo localmente');
+
+    final currentCloudUserId = await _syncService.getCloudUserId();
+
+    if (currentCloudUserId != null) {
+      final userModel = UserModel(
+        uid: currentCloudUserId,
+        name: _nameController.text.trim(),
+        email: _emailController.text.trim(),
+        phone: cleanPhone.isEmpty ? null : cleanPhone,
+        age: int.tryParse(_ageController.text.trim()),
+        bloodType: _bloodTypeController.text.trim().isEmpty
+            ? null
+            : _bloodTypeController.text.trim(),
+        emergencyContactName: _emergencyNameController.text.trim().isEmpty
+            ? null
+            : _emergencyNameController.text.trim(),
+        emergencyContactPhone:
+            cleanEmergencyPhone.isEmpty ? null : cleanEmergencyPhone,
+        observations: _observationsController.text.trim().isEmpty
+            ? null
+            : _observationsController.text.trim(),
+        profileImageUrl: _profileImageBase64,
+      );
+
+      await _syncService.updateUserProfileInCloud(userModel);
+      print('✅ Perfil salvo na nuvem');
+
       setState(() {
-        _isLoading = true;
+        _cloudUserData = userModel;
+        _cloudUserId = currentCloudUserId;
+        _isCloudUser = true;
       });
+    }
 
-      try {
-        final cleanPhone = _unformatPhoneNumber(_phoneController.text);
-        final cleanEmergencyPhone = _unformatPhoneNumber(_emergencyPhoneController.text);
-        
-        final profileData = {
-          'uid': _profileId,
-          'name': _nameController.text.trim(),
-          'email': _emailController.text.trim(),
-          'phone': cleanPhone,
-          'age': int.tryParse(_ageController.text.trim()),
-          'bloodType': _bloodTypeController.text.trim(),
-          'emergencyContactName': _emergencyNameController.text.trim(),
-          'emergencyContactPhone': cleanEmergencyPhone,
-          'observations': _observationsController.text.trim(),
-          'profileImage': _profileImageBase64,
-          'lastSync': DateTime.now().millisecondsSinceEpoch,
-        };
+    _captureInitialProfileState();
 
-        await _storage.saveUser(profileData);
-        print('✅ Perfil salvo localmente');
+    if (!mounted) return true;
 
-        final currentCloudUserId = await _syncService.getCloudUserId();
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Perfil atualizado com sucesso!'),
+        backgroundColor: Color(0xFF4CAF50),
+      ),
+    );
 
-        if (currentCloudUserId != null) {
-          final userModel = UserModel(
-            uid: currentCloudUserId,
-            name: _nameController.text.trim(),
-            email: _emailController.text.trim(),
-            phone: cleanPhone.isEmpty ? null : cleanPhone,
-            age: int.tryParse(_ageController.text.trim()),
-            bloodType: _bloodTypeController.text.trim().isEmpty
-                ? null
-                : _bloodTypeController.text.trim(),
-            emergencyContactName: _emergencyNameController.text.trim().isEmpty
-                ? null
-                : _emergencyNameController.text.trim(),
-            emergencyContactPhone: cleanEmergencyPhone.isEmpty
-                ? null
-                : cleanEmergencyPhone,
-            observations: _observationsController.text.trim().isEmpty
-                ? null
-                : _observationsController.text.trim(),
-            profileImageUrl: _profileImageBase64,
-          );
-        
-          await _syncService.updateUserProfileInCloud(userModel);
-          print('✅ Perfil salvo na nuvem');
-        
-          setState(() {
-            _cloudUserData = userModel;
-            _cloudUserId = currentCloudUserId;
-            _isCloudUser = true;
-          });
-        }
+    if (closeAfterSave) {
+      Navigator.of(context).pop();
+    }
 
-        if (!mounted) return;
-        
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Perfil atualizado com sucesso!'),
-            backgroundColor: Color(0xFF4CAF50),
-          ),
-        );
-        
-        setState(() {
-          _isEditing = false;
-        });
-      } catch (e) {
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Erro ao atualizar perfil: $e'),
-            backgroundColor: const Color(0xFFD32F2F),
-          ),
-        );
-      } finally {
-        setState(() {
-          _isLoading = false;
-        });
-      }
+    return true;
+  } catch (e) {
+    if (!mounted) return false;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Erro ao atualizar perfil: $e'),
+        backgroundColor: const Color(0xFFD32F2F),
+      ),
+    );
+    return false;
+  } finally {
+    if (mounted) {
+      setState(() {
+        _isLoading = false;
+        _isSaving = false;
+      });
     }
   }
+}
 
   Future<void> _saveCloudMedsLocally() async {
     try {
@@ -681,6 +788,7 @@ class _ProfilePageState extends State<ProfilePage> {
         ),
       );
     } finally {
+      if (!mounted) return;
       setState(() {
         _isLoading = false;
       });
@@ -688,7 +796,6 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   Widget _buildProfileImage() {
-    final settings = Provider.of<SettingsService>(context);
     
     return Stack(
       children: [
@@ -742,7 +849,6 @@ class _ProfilePageState extends State<ProfilePage> {
             ),
           ),
         
-        if (_isEditing)
           Positioned(
             bottom: 0,
             right: 0,
@@ -851,64 +957,6 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
-  Widget _buildInfoRow(String label, String value, 
-    {bool isBold = false, IconData? icon}) {  // <-- Adicionar o parâmetro icon aqui
-  final settings = Provider.of<SettingsService>(context, listen: false);
-  
-  return Container(
-    margin: const EdgeInsets.only(bottom: 16),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // Label com ícone
-        Row(
-          children: [
-            if (icon != null) ...[
-              Icon(icon, size: 18, color: const Color(0xFF0D47A1)),
-              const SizedBox(width: 6),
-            ],
-            Text(
-              label,
-              style: settings.getTextStyle(
-                size: 14,
-                fontWeight: FontWeight.w600,
-                color: const Color(0xFF616161),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 4),
-        // Valor em container destacado
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 14),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: Colors.grey[300]!),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.grey.withOpacity(0.1),
-                spreadRadius: 1,
-                blurRadius: 2,
-                offset: const Offset(0, 1),
-              ),
-            ],
-          ),
-          child: Text(
-            value,
-            style: settings.getTextStyle(
-              size: 16,
-              fontWeight: isBold ? FontWeight.bold : FontWeight.normal,
-              color: isBold ? Colors.black : const Color(0xFF212121),
-            ),
-          ),
-        ),
-      ],
-    ),
-  );
-}
-
   Widget _buildPhoneHint() {
     final settings = Provider.of<SettingsService>(context);
     
@@ -939,9 +987,19 @@ class _ProfilePageState extends State<ProfilePage> {
   Widget build(BuildContext context) {
     final settings = Provider.of<SettingsService>(context);
     
-    return Scaffold(
+return PopScope(
+  canPop: false,
+  onPopInvokedWithResult: (didPop, result) async {
+    if (didPop) return;
+    await _tryExitPage();
+  },
+  child: Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: _tryExitPage,
+        ),
         title: Text(
           'Meu Perfil',
           style: settings.getTextStyle(
@@ -950,34 +1008,11 @@ class _ProfilePageState extends State<ProfilePage> {
             color: Colors.white,
           ),
         ),
-        backgroundColor: const Color(0xFF1565C0), // Azul mais escuro
+        backgroundColor: const Color(0xFF1565C0),
         foregroundColor: Colors.white,
         elevation: 2,
         centerTitle: true,
-        actions: [
-          IconButton(
-            icon: Icon(_isEditing ? Icons.close : Icons.edit),
-            onPressed: _toggleEdit,
-            tooltip: _isEditing ? 'Cancelar' : 'Editar',
-            color: Colors.white,
-          ),
-          if (_isEditing)
-            IconButton(
-              icon: _isLoading
-                  ? const SizedBox(
-                      height: 20,
-                      width: 20,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        valueColor: AlwaysStoppedAnimation(Colors.white),
-                      ),
-                    )
-                  : const Icon(Icons.save),
-              onPressed: _isLoading ? null : _saveProfile,
-              tooltip: 'Salvar',
-              color: Colors.white,
-            ),
-        ],
+        actions: const [],
       ),
       body: _isLoading
           ? const Center(
@@ -1037,7 +1072,6 @@ class _ProfilePageState extends State<ProfilePage> {
                             const Divider(color: Color(0xFFBDBDBD), thickness: 1),
                             const SizedBox(height: 16),
                             
-                            if (_isEditing) ...[
                               // Modo edição
                               TextFormField(
                                 controller: _nameController,
@@ -1050,13 +1084,6 @@ class _ProfilePageState extends State<ProfilePage> {
                                     borderSide: BorderSide(color: Color(0xFF0D47A1), width: 2),
                                   ),
                                 ),
-                                enabled: _isEditing,
-                                validator: (value) {
-                                  if (_isEditing && (value == null || value.isEmpty)) {
-                                    return 'Por favor, digite seu nome';
-                                  }
-                                  return null;
-                                },
                               ),
                               const SizedBox(height: 16),
                               
@@ -1071,10 +1098,9 @@ class _ProfilePageState extends State<ProfilePage> {
                                     borderSide: BorderSide(color: Color(0xFF0D47A1), width: 2),
                                   ),
                                 ),
-                                enabled: _isEditing,
                                 keyboardType: TextInputType.emailAddress,
                                 validator: (value) {
-                                  if (_isEditing && value != null && value.isNotEmpty) {
+                                  if (value != null && value.isNotEmpty) {
                                     if (!value.contains('@') || !value.contains('.')) {
                                       return 'Digite um e-mail válido';
                                     }
@@ -1098,7 +1124,6 @@ class _ProfilePageState extends State<ProfilePage> {
                                         borderSide: BorderSide(color: Color(0xFF0D47A1), width: 2),
                                       ),
                                     ),
-                                    enabled: _isEditing,
                                     keyboardType: TextInputType.phone,
                                   ),
                                   _buildPhoneHint(),
@@ -1117,7 +1142,6 @@ class _ProfilePageState extends State<ProfilePage> {
                                     borderSide: BorderSide(color: Color(0xFF0D47A1), width: 2),
                                   ),
                                 ),
-                                enabled: _isEditing,
                                 keyboardType: TextInputType.number,
                               ),
                               const SizedBox(height: 16),
@@ -1147,48 +1171,12 @@ class _ProfilePageState extends State<ProfilePage> {
                                   DropdownMenuItem(value: 'O-', child: Text('O-', style: TextStyle(color: Colors.black))),
                                   DropdownMenuItem(value: 'Não sei', child: Text('Não sei', style: TextStyle(color: Colors.black))),
                                 ],
-                                onChanged: _isEditing ? (value) {
+                                onChanged: (value) {
                                   setState(() {
                                     _bloodTypeController.text = value ?? '';
                                   });
-                                } : null,
-                                validator: (value) {
-                                  if (_isEditing && (value == null || value.isEmpty)) {
-                                    return 'Por favor, selecione seu tipo sanguíneo';
-                                  }
-                                  return null;
                                 },
                               ),
-                            ] else ...[
-                              // Informações Pessoais
-                              _buildInfoRow(
-                                'Nome completo:',
-                                _nameController.text.isNotEmpty ? _nameController.text : 'Não informado',
-                                isBold: true,
-                                icon: Icons.person,
-                              ),
-                              
-                              _buildInfoRow(
-                                'E-mail:',
-                                _emailController.text.isNotEmpty ? _emailController.text : 'Não informado',
-                                icon: Icons.email,
-                              ),
-                              
-                              _buildInfoRow('Telefone:', _phoneController.text.isNotEmpty 
-                                  ? _phoneController.text 
-                                  : 'Não informado', 
-                                  icon: Icons.phone),
-                              
-                              _buildInfoRow('Idade:', _ageController.text.isNotEmpty 
-                                  ? _ageController.text 
-                                  : 'Não informada', 
-                                  icon: Icons.cake),
-                              
-                              _buildInfoRow('Tipo Sanguíneo:', _bloodTypeController.text.isNotEmpty 
-                                  ? _bloodTypeController.text 
-                                  : 'Não informado', 
-                                  icon: Icons.bloodtype),
-                            ],
                           ],
                         ),
                       ),
@@ -1219,7 +1207,6 @@ class _ProfilePageState extends State<ProfilePage> {
                             const Divider(color: Color(0xFFBDBDBD), thickness: 1),
                             const SizedBox(height: 16),
                             
-                            if (_isEditing) ...[
                               TextFormField(
                                 controller: _emergencyNameController,
                                 decoration: const InputDecoration(
@@ -1231,7 +1218,6 @@ class _ProfilePageState extends State<ProfilePage> {
                                     borderSide: BorderSide(color: Color(0xFF0D47A1), width: 2),
                                   ),
                                 ),
-                                enabled: _isEditing,
                               ),
                               const SizedBox(height: 16),
                               
@@ -1249,24 +1235,11 @@ class _ProfilePageState extends State<ProfilePage> {
                                         borderSide: BorderSide(color: Color(0xFF0D47A1), width: 2),
                                       ),
                                     ),
-                                    enabled: _isEditing,
                                     keyboardType: TextInputType.phone,
                                   ),
                                   _buildPhoneHint(),
                                 ],
                               ),
-                            ] else ...[
-                              _buildInfoRow('Nome:', _emergencyNameController.text.isNotEmpty 
-                                  ? _emergencyNameController.text 
-                                  : 'Não informado', 
-                                  isBold: true, 
-                                  icon: Icons.contact_emergency),
-                              
-                              _buildInfoRow('Telefone:', _emergencyPhoneController.text.isNotEmpty 
-                                  ? _emergencyPhoneController.text 
-                                  : 'Não informado', 
-                                  icon: Icons.phone),
-                            ],
                           ],
                         ),
                       ),
@@ -1297,7 +1270,6 @@ class _ProfilePageState extends State<ProfilePage> {
                             const Divider(color: Color(0xFFBDBDBD), thickness: 1),
                             const SizedBox(height: 16),
                             
-                            if (_isEditing) ...[
                               TextFormField(
                                 controller: _observationsController,
                                 decoration: const InputDecoration(
@@ -1309,27 +1281,8 @@ class _ProfilePageState extends State<ProfilePage> {
                                     borderSide: BorderSide(color: Color(0xFF0D47A1), width: 2),
                                   ),
                                 ),
-                                enabled: _isEditing,
                                 maxLines: 3,
                               ),
-                            ] else ...[
-                              Padding(
-                                padding: const EdgeInsets.symmetric(vertical: 8),
-                                child: Text(
-                                  _observationsController.text.isNotEmpty 
-                                      ? _observationsController.text 
-                                      : 'Nenhuma observação cadastrada',
-                                  style: settings.getTextStyle(
-                                    color: _observationsController.text.isNotEmpty 
-                                        ? Colors.black87 
-                                        : const Color(0xFF757575),
-                                    fontStyle: _observationsController.text.isNotEmpty 
-                                        ? FontStyle.normal 
-                                        : FontStyle.italic,
-                                  ),
-                                ),
-                              ),
-                            ],
                           ],
                         ),
                       ),
@@ -1415,15 +1368,21 @@ class _ProfilePageState extends State<ProfilePage> {
                               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
                             ),
                             child: Row(
-                              mainAxisSize: MainAxisSize.min,
+                              mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                Expanded(  // Isso resolve o overflow!
+                                const Icon(Icons.logout),
+                                const SizedBox(width: 8),
+                                Flexible(
                                   child: Text(
                                     'SAIR DA CONTA',
-                                    overflow: TextOverflow.ellipsis, // Se ainda assim estourar, adiciona ...
+                                    overflow: TextOverflow.ellipsis,
+                                    style: settings.getTextStyle(
+                                      size: settings.buttonFontSize,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.white,
+                                    )
                                   ),
                                 ),
-                                Icon(Icons.logout),
                               ],
                             )
                           ),
@@ -1448,8 +1407,9 @@ class _ProfilePageState extends State<ProfilePage> {
               ),
             ),
     )
-    );
-  }
+  ),
+);
+}
 
   @override
   void dispose() {

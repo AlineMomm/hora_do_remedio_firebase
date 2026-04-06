@@ -10,6 +10,13 @@ android {
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
+    applicationVariants.all {
+        outputs.all {
+            val output = this as com.android.build.gradle.internal.api.BaseVariantOutputImpl
+            output.outputFileName = "Hora_do_Remedio.apk"
+        }
+    }
+
     buildFeatures {
         buildConfig = true
     }
@@ -53,4 +60,10 @@ flutter {
 
 dependencies {
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
+    tasks.register<Copy>("renameReleaseApk") {
+        dependsOn("assembleRelease")
+        from("$buildDir/outputs/flutter-apk/app-release.apk")
+        into("$buildDir/outputs/flutter-apk")
+        rename("app-release.apk", "Hora-do-Remedio.apk")
+    }
 }
