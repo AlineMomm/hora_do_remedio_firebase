@@ -1,4 +1,3 @@
-// lib/services/medication_service.dart
 import 'package:flutter/foundation.dart' show kIsWeb;
 import '../services/local_storage_service.dart';
 import '../models/medication_model.dart';
@@ -193,21 +192,17 @@ Future<void> markAsTaken(String medicationId, String userId) async {
       
       print('✅ Medicamento $medicationId marcado como tomado');
       
-      // Cancelar notificação de hoje e reagendar para amanhã
+      // Cancelar notificação atual e reagendar conforme a frequência
       if (!kIsWeb) {
         await NotificationService().cancelNotification(medicationId.hashCode);
-        
-        // Criar modelo para reagendar
+      
         final med = MedicationModel.fromMap(allMeds[index]);
-        final tomorrow = DateTime(
-          now.year, now.month, now.day + 1,
-          med.hour, med.minute
-        );
-        
+        final nextTime = med.nextDoseTime;
+      
         await NotificationService().scheduleMedicationReminder(
           id: med.id.hashCode,
           medicationName: med.name,
-          scheduledTime: tomorrow,
+          scheduledTime: nextTime,
           observation: med.notes,
         );
       }
@@ -249,17 +244,39 @@ Future<void> undoTakeMedication(String medicationId, String userId) async {
       if (!kIsWeb) {
         final med = MedicationModel.fromMap(allMeds[index]);
         final now = DateTime.now();
-        final todayDose = DateTime(
-          now.year, now.month, now.day,
-          med.hour, med.minute
-        );
-        
+      
         await NotificationService().cancelNotification(medicationId.hashCode);
-        
-        final notificationTime = todayDose.isBefore(now)
-            ? todayDose.add(const Duration(days: 1))
-            : todayDose;
-        
+      
+        DateTime notificationTime;
+      
+        if (med.frequency == 'Quando necessário') {
+          notificationTime = now;
+        } else if (med.isIntervalFrequency) {
+          final base = DateTime(now.year, now.month, now.day, med.hour, med.minute);
+      
+          if (base.isAfter(now)) {
+            notificationTime = base;
+          } else {
+            DateTime next = base;
+            while (!next.isAfter(now)) {
+              next = next.add(med.frequencyDuration);
+            }
+            notificationTime = next;
+          }
+        } else {
+          final todayDose = DateTime(
+            now.year,
+            now.month,
+            now.day,
+            med.hour,
+            med.minute,
+          );
+      
+          notificationTime = todayDose.isBefore(now)
+              ? todayDose.add(med.frequencyDuration)
+              : todayDose;
+        }
+      
         await NotificationService().scheduleMedicationReminder(
           id: med.id.hashCode,
           medicationName: med.name,
