@@ -457,7 +457,7 @@ packages:
     source: hosted
     version: "0.8.13+14"
   image_picker_for_web:
-    dependency: transitive
+    dependency: "direct main"
     description:
       name: image_picker_for_web
       sha256: "66257a3191ab360d23a55c8241c91a6e329d31e94efa7be9cf7a212e65850214"
@@ -496,6 +496,14 @@ packages:
       url: "https://pub.flutter-io.cn"
     source: hosted
     version: "2.11.1"
+  image_picker_web:
+    dependency: "direct main"
+    description:
+      name: image_picker_web
+      sha256: b5cf4faf66714f17b3e86b37a39d19743603163a08b968b28cadfc5df1dc2b75
+      url: "https://pub.flutter-io.cn"
+    source: hosted
+    version: "4.0.0"
   image_picker_windows:
     dependency: transitive
     description:
@@ -918,7 +926,7 @@ packages:
     source: hosted
     version: "15.0.2"
   web:
-    dependency: transitive
+    dependency: "direct main"
     description:
       name: web
       sha256: "868d88a33d8a87b18ffc05f9f030ba328ffefba92d6c127917a2ba740f9cfe4a"

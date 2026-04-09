@@ -9,6 +9,7 @@ import '../widgets/sync_button.dart';
 import '../services/sync_service.dart';
 import 'settings_page.dart';
 import '../services/settings_service.dart';
+import 'dart:async';
 
 class MedicationListPage extends StatefulWidget {
   const MedicationListPage({super.key});
@@ -21,6 +22,7 @@ class _MedicationListPageState extends State<MedicationListPage> {
   final MedicationService _medicationService = MedicationService();
   List<MedicationModel> _medications = [];
   bool _isLoading = true;
+  Timer? _refreshTimer;
   
   final SyncService _syncService = SyncService(); // Já existe
   String _currentUserId = 'local_user_001';
@@ -30,11 +32,17 @@ class _MedicationListPageState extends State<MedicationListPage> {
     super.initState();
     _syncService.addListener(_onSyncChange); // Adicionar listener
     _initializeUserAndLoad();
+    _refreshTimer = Timer.periodic(const Duration(minutes: 1), (_) {
+      if (mounted) {
+        setState(() {});
+    }
+});
   }
 
   @override
   void dispose() {
-    _syncService.removeListener(_onSyncChange); // Remover listener
+    _syncService.removeListener(_onSyncChange);
+    _refreshTimer?.cancel();
     super.dispose();
   }
 
@@ -479,11 +487,10 @@ void _onSyncChange() {
 
 Future<void> _markAsTaken(MedicationModel medication) async {
   try {
-    // Mostrar diálogo de confirmação
     final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text(
+        title: const Text(
           'Tomar Medicamento',
           style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
         ),
@@ -493,42 +500,19 @@ Future<void> _markAsTaken(MedicationModel medication) async {
           children: [
             Text(
               'Você tomou "${medication.name}"?',
-              style: TextStyle(fontSize: 18),
+              style: const TextStyle(fontSize: 18),
             ),
             const SizedBox(height: 8),
             Text(
               'Horário: ${medication.formattedTime}',
               style: TextStyle(fontSize: 16, color: Colors.grey[600]),
             ),
-            if (medication.wasTakenToday) ...[
-              const SizedBox(height: 8),
-              Container(
-                padding: EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: Colors.orange[50],
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.orange),
-                ),
-                child: Row(
-                  children: [
-                    Icon(Icons.warning, color: Colors.orange, size: 20),
-                    SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        'Este medicamento já foi registrado como tomado hoje.',
-                        style: TextStyle(color: Colors.orange[800]),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
           ],
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: Text(
+            child: const Text(
               'NÃO',
               style: TextStyle(fontSize: 16, color: Color(0xFF1976D2)),
             ),
@@ -539,7 +523,7 @@ Future<void> _markAsTaken(MedicationModel medication) async {
               backgroundColor: const Color(0xFF2E7D32),
               foregroundColor: Colors.white,
             ),
-            child: Text(
+            child: const Text(
               'SIM, TOMEI',
               style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
             ),
@@ -554,9 +538,7 @@ Future<void> _markAsTaken(MedicationModel medication) async {
       _isLoading = true;
     });
 
-    // ✅ Usar o medicationService que já existe
     await _medicationService.markAsTaken(medication.id, _currentUserId);
-
     await _loadMedications();
 
     final status = await _syncService.getSyncStatus();
@@ -570,28 +552,27 @@ Future<void> _markAsTaken(MedicationModel medication) async {
       SnackBar(
         content: Row(
           children: [
-            Icon(Icons.check_circle, color: Colors.white),
+            const Icon(Icons.check_circle, color: Colors.white),
             const SizedBox(width: 8),
             Expanded(
               child: Text(
                 '✅ Medicamento "${medication.name}" registrado como tomado!',
-                style: TextStyle(fontSize: 14),
+                style: const TextStyle(fontSize: 14),
               ),
             ),
           ],
         ),
         backgroundColor: const Color(0xFF2E7D32),
-        duration: Duration(seconds: 3),
+        duration: const Duration(seconds: 3),
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(10),
         ),
       ),
     );
-
   } catch (e) {
     if (!mounted) return;
-    
+
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text('Erro ao registrar: $e'),
@@ -608,7 +589,7 @@ Future<void> _markAsTaken(MedicationModel medication) async {
 }
 
   Widget _buildMedicationCard(MedicationModel medication, SettingsService settings) {
-  final wasTaken = medication.wasTakenToday;
+  final isTakenForCurrentDose = medication.lastTaken != null && !medication.canTakeNow;
   
   return Card(
     margin: const EdgeInsets.only(bottom: 16),
@@ -616,7 +597,7 @@ Future<void> _markAsTaken(MedicationModel medication) async {
     shape: RoundedRectangleBorder(
       borderRadius: BorderRadius.circular(12),
     ),
-    color: wasTaken ? Colors.green[50] : Colors.white,
+    color: isTakenForCurrentDose ? Colors.green[50] : Colors.white,
     child: Padding(
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -640,18 +621,18 @@ Future<void> _markAsTaken(MedicationModel medication) async {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 decoration: BoxDecoration(
-                  color: wasTaken ? Colors.green : Colors.orange,
+                  color: isTakenForCurrentDose ? Colors.green : Colors.orange,
                   borderRadius: BorderRadius.circular(20),
                   boxShadow: [
                     BoxShadow(
-                      color: (wasTaken ? Colors.green : Colors.orange).withOpacity(0.3),
+                      color: (isTakenForCurrentDose ? Colors.green : Colors.orange).withOpacity(0.3),
                       blurRadius: 4,
                       offset: const Offset(0, 2),
                     ),
                   ],
                 ),
                 child: Text(
-                  wasTaken ? 'TOMADO' : 'FALTA TOMAR',
+                  isTakenForCurrentDose ? 'TOMADO' : 'FALTA TOMAR',
                   style: const TextStyle(
                     color: Colors.white,
                     fontSize: 12,
@@ -849,7 +830,7 @@ Future<void> _markAsTaken(MedicationModel medication) async {
           const SizedBox(height: 12),
 
           // Botão TOMAR
-          if (!wasTaken)
+          if (!isTakenForCurrentDose)
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
@@ -880,7 +861,7 @@ Future<void> _markAsTaken(MedicationModel medication) async {
             ),
 
           // Botão DESFAZER (se já tomou)
-          if (wasTaken)
+          if (isTakenForCurrentDose)
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
