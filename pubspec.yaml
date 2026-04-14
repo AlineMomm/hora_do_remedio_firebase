@@ -24,18 +24,21 @@ dependencies:
   firebase_messaging: ^14.6.7
   permission_handler: ^11.3.1
   web: ^1.0.0
+  alarm: ^5.2.1
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^3.0.0
   flutter_launcher_icons: ^0.14.3
+  android_intent_plus: ^5.3.0
 
 flutter:
   uses-material-design: true
   assets:
     - assets/logo_hora_remedio.png
     - assets/logo.png
+    - assets/alarm.mp3
 
 flutter_launcher_icons:
   android: true

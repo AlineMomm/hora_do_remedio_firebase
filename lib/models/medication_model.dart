@@ -65,8 +65,6 @@ class MedicationModel {
         return const Duration(hours: 6);
       case 'Semanal':
         return const Duration(days: 7);
-      case 'Quando necessário':
-        return Duration.zero;
       case 'Diário':
       default:
         return const Duration(days: 1);
@@ -86,10 +84,6 @@ class MedicationModel {
 
   bool get canTakeNow {
     final now = DateTime.now();
-
-    if (frequency == 'Quando necessário') {
-      return true;
-    }
 
     if (isIntervalFrequency) {
       if (lastTaken == null) {
@@ -113,21 +107,17 @@ class MedicationModel {
           todayDoseTime.difference(now).inMinutes <= 30;
     }
 
-    if (wasTakenToday) {
-      final nextDose = todayDoseTime.add(frequencyDuration);
-      return now.isAfter(nextDose);
+    if (lastTaken!.isBefore(todayDoseTime)) {
+      return now.isAfter(todayDoseTime) ||
+          now.isAtSameMomentAs(todayDoseTime);
     }
 
-    return now.isAfter(todayDoseTime) ||
-        todayDoseTime.difference(now).inMinutes <= 30;
+    final nextDose = todayDoseTime.add(frequencyDuration);
+    return now.isAfter(nextDose) || now.isAtSameMomentAs(nextDose);
   }
 
   DateTime get nextDoseTime {
     final now = DateTime.now();
-
-    if (frequency == 'Quando necessário') {
-      return now;
-    }
 
     if (isIntervalFrequency) {
       if (lastTaken != null) {
@@ -160,33 +150,98 @@ class MedicationModel {
           : todayDose.add(frequencyDuration);
     }
 
-    if (!wasTakenToday && now.isBefore(todayDose)) {
+    if (lastTaken!.isBefore(todayDose)) {
       return todayDose;
     }
 
     return todayDose.add(frequencyDuration);
   }
 
-  String get status {
-    if (frequency == 'Quando necessário') {
-      return 'Tomar se necessário';
+  DateTime get currentDoseScheduledTime {
+  final now = DateTime.now();
+
+  if (isIntervalFrequency) {
+    final base = DateTime(now.year, now.month, now.day, hour, minute);
+
+    if (lastTaken != null) {
+      return lastTaken!.add(frequencyDuration);
     }
 
-    if (canTakeNow) {
-      return 'Pode tomar';
+    if (base.isAfter(now)) {
+      return base;
     }
 
-    final diff = nextDoseTime.difference(DateTime.now());
-    final totalMinutes = diff.inMinutes < 0 ? 0 : diff.inMinutes;
-    final hours = totalMinutes ~/ 60;
-    final minutes = totalMinutes % 60;
-
-    if (wasTakenToday || (isIntervalFrequency && lastTaken != null)) {
-      return 'Próxima dose em $hours h $minutes min';
+    DateTime current = base;
+    while (current.add(frequencyDuration).isBefore(now) ||
+        current.add(frequencyDuration).isAtSameMomentAs(now)) {
+      current = current.add(frequencyDuration);
     }
-
-    return 'Próximo horário em $hours h $minutes min';
+    return current;
   }
+
+  return DateTime(
+    now.year,
+    now.month,
+    now.day,
+    hour,
+    minute,
+  );
+}
+
+bool get isOverdue {
+  final now = DateTime.now();
+  final scheduled = currentDoseScheduledTime;
+
+  if (lastTaken != null) {
+    if (isIntervalFrequency) {
+      return now.isAfter(scheduled);
+    }
+
+    if (!lastTaken!.isBefore(scheduled)) {
+      return false;
+    }
+  }
+
+  return now.isAfter(scheduled);
+}
+
+String get overdueText {
+  final diff = DateTime.now().difference(currentDoseScheduledTime);
+
+  final totalMinutes = diff.inMinutes < 0 ? 0 : diff.inMinutes;
+  final hours = totalMinutes ~/ 60;
+  final minutes = totalMinutes % 60;
+
+  if (hours > 0) {
+    return 'Atrasado há ${hours} h ${minutes} min';
+  }
+
+  return 'Atrasado há ${minutes} min';
+}
+
+  String get status {
+  if (isOverdue) {
+    return overdueText;
+  }
+
+  final now = DateTime.now();
+  final scheduled = currentDoseScheduledTime;
+
+  if (canTakeNow && !now.isAfter(scheduled)) {
+    return 'Pode tomar';
+  }
+
+  final diff = nextDoseTime.difference(now);
+  final totalMinutes = diff.inMinutes < 0 ? 0 : diff.inMinutes;
+  final hours = totalMinutes ~/ 60;
+  final minutes = totalMinutes % 60;
+
+  if (wasTakenToday || (isIntervalFrequency && lastTaken != null)) {
+    return 'Próxima dose em $hours h $minutes min';
+  }
+
+  return 'Próximo horário em $hours h $minutes min';
+}
 
   bool get wasTakenToday {
     if (lastTaken == null) return false;

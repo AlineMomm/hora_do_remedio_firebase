@@ -249,9 +249,7 @@ Future<void> undoTakeMedication(String medicationId, String userId) async {
       
         DateTime notificationTime;
       
-        if (med.frequency == 'Quando necessário') {
-          notificationTime = now;
-        } else if (med.isIntervalFrequency) {
+        if (med.isIntervalFrequency) {
           final base = DateTime(now.year, now.month, now.day, med.hour, med.minute);
       
           if (base.isAfter(now)) {

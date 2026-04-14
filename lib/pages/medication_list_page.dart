@@ -10,6 +10,7 @@ import '../services/sync_service.dart';
 import 'settings_page.dart';
 import '../services/settings_service.dart';
 import 'dart:async';
+import 'alarm_permissions_page.dart';
 
 class MedicationListPage extends StatefulWidget {
   const MedicationListPage({super.key});
@@ -272,6 +273,31 @@ void _onSyncChange() {
   toolbarHeight: 80, // AppBar mais baixa para centralizar melhor
   centerTitle: true,
   actions: [
+    Padding(
+  padding: const EdgeInsets.symmetric(horizontal: 8),
+  child: Column(
+    mainAxisSize: MainAxisSize.min,
+    mainAxisAlignment: MainAxisAlignment.center,
+    children: [
+      IconButton(
+        icon: const Icon(Icons.alarm_on, size: 28, color: Colors.white),
+        onPressed: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => const AlarmPermissionsPage(),
+            ),
+          );
+        },
+        padding: const EdgeInsets.all(4),
+      ),
+      const Text(
+        'Alarmes',
+        style: TextStyle(color: Colors.white, fontSize: 12),
+      ),
+    ],
+  ),
+),
     // Configurações
     Padding(
       padding: const EdgeInsets.symmetric(horizontal: 8),
@@ -591,6 +617,18 @@ Future<void> _markAsTaken(MedicationModel medication) async {
   Widget _buildMedicationCard(MedicationModel medication, SettingsService settings) {
   final isTakenForCurrentDose = medication.lastTaken != null && !medication.canTakeNow;
   
+  final statusTag = isTakenForCurrentDose
+    ? 'TOMADO'
+    : medication.isOverdue
+        ? 'ATRASADO'
+        : 'PENDENTE';
+
+  final statusColor = isTakenForCurrentDose
+      ? Colors.green
+      : medication.isOverdue
+          ? Colors.red
+          : Colors.orange;
+  
   return Card(
     margin: const EdgeInsets.only(bottom: 16),
     elevation: 2,
@@ -621,18 +659,18 @@ Future<void> _markAsTaken(MedicationModel medication) async {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 decoration: BoxDecoration(
-                  color: isTakenForCurrentDose ? Colors.green : Colors.orange,
+                  color: statusColor,
                   borderRadius: BorderRadius.circular(20),
                   boxShadow: [
                     BoxShadow(
-                      color: (isTakenForCurrentDose ? Colors.green : Colors.orange).withOpacity(0.3),
+                      color: statusColor.withValues(alpha: 0.3),
                       blurRadius: 4,
                       offset: const Offset(0, 2),
                     ),
                   ],
                 ),
                 child: Text(
-                  isTakenForCurrentDose ? 'TOMADO' : 'FALTA TOMAR',
+                  statusTag,
                   style: const TextStyle(
                     color: Colors.white,
                     fontSize: 12,

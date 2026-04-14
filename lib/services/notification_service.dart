@@ -1,8 +1,8 @@
 import 'package:flutter/foundation.dart' show kIsWeb, debugPrint;
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:alarm/alarm.dart';
+import 'package:alarm/model/alarm_settings.dart';
+import 'package:alarm/model/volume_settings.dart';
 import 'package:permission_handler/permission_handler.dart';
-import 'package:timezone/data/latest.dart' as tz;
-import 'package:timezone/timezone.dart' as tz;
 
 class NotificationService {
   static final NotificationService _instance =
@@ -12,15 +12,12 @@ class NotificationService {
 
   NotificationService._internal();
 
-  final FlutterLocalNotificationsPlugin _mobileNotifications =
-      FlutterLocalNotificationsPlugin();
-
   bool _initialized = false;
 
   Future<void> initialize() async {
     if (_initialized) return;
 
-    debugPrint('🔔 Inicializando NotificationService...');
+    debugPrint('🔔 Inicializando serviço de alarme...');
 
     if (kIsWeb) {
       debugPrint('🌐 Web desativado neste serviço.');
@@ -28,69 +25,19 @@ class NotificationService {
       return;
     }
 
-    await _initializeMobileNotifications();
-    _initialized = true;
-  }
-
-  Future<void> _initializeMobileNotifications() async {
     try {
-      debugPrint('📱 Mobile: Inicializando notificações...');
+      final notificationStatus = await Permission.notification.status;
 
-      const androidSettings =
-          AndroidInitializationSettings('@mipmap/ic_launcher');
-
-      const iosSettings = DarwinInitializationSettings(
-        requestAlertPermission: true,
-        requestBadgePermission: true,
-        requestSoundPermission: true,
-      );
-
-      const initSettings = InitializationSettings(
-        android: androidSettings,
-        iOS: iosSettings,
-      );
-
-      await _mobileNotifications.initialize(
-        initSettings,
-        onDidReceiveNotificationResponse: _onNotificationTap,
-      );
-
-      tz.initializeTimeZones();
-
-      final androidImplementation =
-          _mobileNotifications.resolvePlatformSpecificImplementation<
-              AndroidFlutterLocalNotificationsPlugin>();
-
-      // Permissão de notificação Android 13+
-      await androidImplementation?.requestNotificationsPermission();
-
-      // Permissão de exact alarm Android 12+/14+
-      await androidImplementation?.requestExactAlarmsPermission();
-
-      // Canal
-      const channel = AndroidNotificationChannel(
-        'medication_channel',
-        'Lembretes de Medicamentos',
-        description: 'Canal para lembretes de medicamentos',
-        importance: Importance.max,
-      );
-
-      await androidImplementation?.createNotificationChannel(channel);
-
-      // Permissão extra via permission_handler
-      final permissionStatus = await Permission.notification.status;
-      if (permissionStatus.isDenied || permissionStatus.isRestricted) {
+      if (!notificationStatus.isGranted) {
         await Permission.notification.request();
       }
 
-      debugPrint('📱 Mobile: Notificações inicializadas com sucesso');
+      await Alarm.init();
+      _initialized = true;
+      debugPrint('✅ Serviço de alarme inicializado com sucesso');
     } catch (e) {
-      debugPrint('❌ Mobile: Erro ao inicializar notificações: $e');
+      debugPrint('❌ Erro ao inicializar serviço de alarme: $e');
     }
-  }
-
-  void _onNotificationTap(NotificationResponse response) {
-    debugPrint('📱 Mobile: Notificação clicada: ${response.payload}');
   }
 
   Future<void> scheduleMedicationReminder({
@@ -103,105 +50,85 @@ class NotificationService {
       await initialize();
     }
 
-    debugPrint('📅 scheduleMedicationReminder CHAMADO para $medicationName');
-    debugPrint('   ID: $id');
-    debugPrint('   Horário: $scheduledTime');
-    debugPrint('   Agora: ${DateTime.now()}');
-
     if (kIsWeb) {
       debugPrint('🌐 Agendamento web desativado.');
       return;
     }
 
-    await _scheduleMobileNotification(
-      id: id,
-      medicationName: medicationName,
-      scheduledTime: scheduledTime,
-      observation: observation,
-    );
-  }
-
-  Future<void> _scheduleMobileNotification({
-    required int id,
-    required String medicationName,
-    required DateTime scheduledTime,
-    String? observation,
-  }) async {
     try {
-      debugPrint('📱 Mobile: Agendando $medicationName para $scheduledTime');
+      debugPrint('⏰ scheduleMedicationReminder CHAMADO para $medicationName');
+      debugPrint('   ID: $id');
+      debugPrint('   Horário original: $scheduledTime');
+      debugPrint('   Agora: ${DateTime.now()}');
 
       final now = DateTime.now();
       DateTime effectiveTime = scheduledTime;
 
-      if (effectiveTime.isBefore(now)) {
+      if (!effectiveTime.isAfter(now)) {
         effectiveTime = now.add(const Duration(seconds: 5));
-        debugPrint('⚠️ Horário no passado. Ajustado para: $effectiveTime');
+        debugPrint('⚠️ Horário no passado ou igual ao atual. Ajustado para: $effectiveTime');
       }
 
-      final scheduledDate = tz.TZDateTime.from(effectiveTime, tz.local);
-
-      const androidDetails = AndroidNotificationDetails(
-        'medication_channel',
-        'Lembretes de Medicamentos',
-        channelDescription: 'Canal para lembretes de medicamentos',
-        importance: Importance.max,
-        priority: Priority.high,
-        enableVibration: true,
-        playSound: true,
+      final alarmSettings = AlarmSettings(
+        id: id,
+        dateTime: effectiveTime,
+        assetAudioPath: 'assets/alarm.mp3',
+        loopAudio: true,
+        vibrate: true,
+        warningNotificationOnKill: true,
+        androidFullScreenIntent: true,
+        volumeSettings: VolumeSettings.fade(
+          fadeDuration: const Duration(seconds: 3),
+          volumeEnforced: false,
+        ),
+        notificationSettings: NotificationSettings(
+          title: 'Hora do Remédio 💊',
+          body:
+              'Está na hora de tomar $medicationName${observation != null && observation.trim().isNotEmpty ? ': $observation' : ''}',
+          stopButton: 'Parar',
+        ),
       );
 
-      const iosDetails = DarwinNotificationDetails(
-        presentAlert: true,
-        presentBadge: true,
-        presentSound: true,
-      );
+      await Alarm.set(alarmSettings: alarmSettings);
 
-      const notificationDetails = NotificationDetails(
-        android: androidDetails,
-        iOS: iosDetails,
-      );
-
-      await _mobileNotifications.zonedSchedule(
-        id,
-        'Hora do Remédio 💊',
-        'Está na hora de tomar $medicationName'
-        '${observation != null && observation.trim().isNotEmpty ? ': $observation' : ''}',
-        scheduledDate,
-        notificationDetails,
-        androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-        uiLocalNotificationDateInterpretation:
-            UILocalNotificationDateInterpretation.absoluteTime,
-        payload: 'medication_$id',
-      );
-
-      final pending = await _mobileNotifications.pendingNotificationRequests();
-      debugPrint('✅ Mobile: Notificação agendada com sucesso');
-      debugPrint('📌 Pendentes: ${pending.length}');
+      final alarms = await Alarm.getAlarms();
+      debugPrint('✅ Alarme agendado com sucesso');
+      debugPrint('📌 Alarmes ativos: ${alarms.length}');
     } catch (e) {
-      debugPrint('❌ Mobile: Erro ao agendar: $e');
+      debugPrint('❌ Erro ao agendar alarme: $e');
     }
   }
 
   Future<void> cancelNotification(int id) async {
     if (kIsWeb) return;
-    await _mobileNotifications.cancel(id);
-    debugPrint('✅ Notificação #$id cancelada');
+
+    try {
+      await Alarm.stop(id);
+      debugPrint('✅ Alarme #$id cancelado');
+    } catch (e) {
+      debugPrint('❌ Erro ao cancelar alarme #$id: $e');
+    }
   }
 
   Future<void> cancelAllNotifications() async {
     if (kIsWeb) return;
-    await _mobileNotifications.cancelAll();
-    debugPrint('✅ Todas as notificações foram canceladas');
+
+    try {
+      await Alarm.stopAll();
+      debugPrint('✅ Todos os alarmes foram cancelados');
+    } catch (e) {
+      debugPrint('❌ Erro ao cancelar todos os alarmes: $e');
+    }
   }
 
   Future<void> testNotification() async {
-    debugPrint('🧪 Testando notificação em 5 segundos...');
+    debugPrint('🧪 Testando alarme em 5 segundos...');
 
     await scheduleMedicationReminder(
       id: DateTime.now().millisecondsSinceEpoch.remainder(2147483647),
       medicationName: 'TESTE',
       scheduledTime: DateTime.now().add(const Duration(seconds: 5)),
-      observation: 'Notificação de teste',
+      observation: 'Alarme de teste',
     );
   }
 

@@ -33,7 +33,6 @@ class _AddMedicationPageState extends State<AddMedicationPage> {
     'A cada 8 horas',
     'A cada 6 horas',
     'Semanal',
-    'Quando necessário'
   ];
 
   bool _isLoading = false;

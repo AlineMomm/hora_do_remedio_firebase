@@ -4,7 +4,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
 import 'pages/medication_list_page.dart';
 import 'services/settings_service.dart';
-import 'services/notification_service.dart'; // <-- ADICIONAR
+import 'services/notification_service.dart';
 import 'package:hora_do_remedio/services/sync_service.dart';
 
 void main() async {
