@@ -82,38 +82,41 @@ void _onSyncChange() {
 
   Future<void> _checkUserAndLoad() async {
   final status = await _syncService.getSyncStatus();
-  
+
   if (status['isLoggedIn']) {
-    _currentUserId = status['cloudUserId'];
-    print('✅ Usuário logado na nuvem: $_currentUserId');
-    
+    final cloudUserId = status['cloudUserId'];
+    print('✅ Usuário logado na nuvem: $cloudUserId');
+
     try {
-      // Carregar medicamentos da nuvem
-      final cloudMeds = await _syncService.loadFromCloud(_currentUserId);
-      
-      // Garantir que estamos usando a lista mais atualizada
-      final updatedMeds = await _medicationService.getMedicationsList(_currentUserId);
-      
-      // Ordenar medicamentos
+      // 1. Antes de trocar para a nuvem, envia o local para a nuvem
+      await _syncService.syncLocalToCloud(cloudUserId);
+
+      // 2. Agora usa o usuário da nuvem
+      _currentUserId = cloudUserId;
+
+      // 3. Agora usa o usuário da nuvem
+      _currentUserId = cloudUserId;
+
+      // 4. Carrega a lista já sincronizada
+      final updatedMeds =
+          await _medicationService.getMedicationsList(_currentUserId);
+
       updatedMeds.sort((a, b) {
         if (a.hour != b.hour) return a.hour.compareTo(b.hour);
         if (a.minute != b.minute) return a.minute.compareTo(b.minute);
         return a.name.compareTo(b.name);
       });
-      
+
+      if (!mounted) return;
+
       setState(() {
         _medications = updatedMeds;
         _isLoading = false;
       });
-      
+
       print('📦 Medicamentos carregados da nuvem: ${updatedMeds.length}');
-      for (var i = 0; i < updatedMeds.length; i++) {
-        print('   ${i+1}. ${updatedMeds[i].name} - ${updatedMeds[i].formattedTime}');
-      }
-      
     } catch (e) {
-      print('❌ Erro ao carregar da nuvem: $e');
-      // Se falhar, tenta carregar local
+      print('❌ Erro ao sincronizar/carregar da nuvem: $e');
       await _loadMedications();
     }
   } else {

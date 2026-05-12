@@ -1375,12 +1375,15 @@ return PopScope(
                                 Flexible(
                                   child: Text(
                                     'SAIR DA CONTA',
-                                    overflow: TextOverflow.ellipsis,
+                                    textAlign: TextAlign.center,
+                                    maxLines: 2,
+                                    softWrap: true,
+                                    overflow: TextOverflow.visible,
                                     style: settings.getTextStyle(
                                       size: settings.buttonFontSize,
                                       fontWeight: FontWeight.bold,
                                       color: Colors.white,
-                                    )
+                                    ),
                                   ),
                                 ),
                               ],

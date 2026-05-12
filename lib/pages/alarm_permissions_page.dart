@@ -12,7 +12,6 @@ class AlarmPermissionsPage extends StatefulWidget {
 class _AlarmPermissionsPageState extends State<AlarmPermissionsPage> {
   final AlarmPermissionService _permissionService = AlarmPermissionService();
 
-  bool _notificationsGranted = false;
   bool _loading = true;
   bool _testingAlarm = false;
 
@@ -23,37 +22,16 @@ class _AlarmPermissionsPageState extends State<AlarmPermissionsPage> {
   }
 
   Future<void> _loadStatus() async {
-    setState(() {
-      _loading = true;
-    });
-
-    final notificationsGranted =
-        await _permissionService.isNotificationPermissionGranted();
-
     if (!mounted) return;
-
+  
     setState(() {
-      _notificationsGranted = notificationsGranted;
       _loading = false;
     });
   }
 
-  Future<void> _requestNotifications() async {
-    await _permissionService.requestNotificationPermission();
-    await _loadStatus();
-  }
-
-  Future<void> _openNotificationSettings() async {
-    await _permissionService.openAppNotificationSettings();
-  }
-
   Future<void> _openAppSettings() async {
-    await _permissionService.openGeneralAppSettings();
-  }
-
-  Future<void> _openExactAlarmSettings() async {
-    await _permissionService.openExactAlarmSettings();
-  }
+  await _permissionService.openAppSettingsPage();
+}
 
   Future<void> _testAlarm() async {
     setState(() {
@@ -272,6 +250,7 @@ class _AlarmPermissionsPageState extends State<AlarmPermissionsPage> {
       ],
     );
   }
+  
 
   @override
   Widget build(BuildContext context) {
@@ -298,48 +277,18 @@ class _AlarmPermissionsPageState extends State<AlarmPermissionsPage> {
                   _buildInstructionBox(),
 
                   _buildStepCard(
-                    title: '1. Permitir notificações',
+                    title: 'Configurar o App',
                     description:
-                        _notificationsGranted
-                            ? 'Tudo certo! As notificações já estão permitidas.'
-                            : 'Ative as notificações para o alarme aparecer na tela e mostrar o botão de parar.',
-                    buttonText:
-                        _notificationsGranted ? 'JÁ ESTÁ ATIVADO' : 'PERMITIR NOTIFICAÇÕES',
-                    onPressed:
-                        _notificationsGranted ? () {} : _requestNotifications,
-                    completed: _notificationsGranted,
-                    icon: Icons.notifications_active,
-                    color: const Color(0xFF1565C0),
-                  ),
-
-                  _buildStepCard(
-                    title: '2. Abrir configurações de notificações',
-                    description:
-                        'Na próxima tela, deixe ativado tudo o que tiver relação com som, vibração, tela de bloqueio e notificações flutuantes.',
-                    buttonText: 'ABRIR CONFIGURAÇÕES DE NOTIFICAÇÃO',
-                    onPressed: _openNotificationSettings,
-                    icon: Icons.notifications,
-                    color: const Color(0xFF6A1B9A),
-                  ),
-
-                  _buildStepCard(
-                    title: '3. Permitir alarmes exatos',
-                    description:
-                        'Alguns celulares exigem uma permissão especial para disparar o alarme no horário certinho.',
-                    buttonText: 'ABRIR CONFIGURAÇÃO DE ALARME',
-                    onPressed: _openExactAlarmSettings,
-                    icon: Icons.alarm,
-                    color: const Color(0xFFF57C00),
-                  ),
-
-                  _buildStepCard(
-                    title: '4. Abrir configurações gerais do app',
-                    description:
-                        'Se o alarme ainda não aparecer, ative opções como: mostrar na tela de bloqueio e abrir novas janelas em segundo plano.',
-                    buttonText: 'ABRIR CONFIGURAÇÕES DO APP',
+                        'Na próxima tela, ative tudo:\n\n'
+                        '• Notificações\n'
+                        '• Alarmes e lembretes\n'
+                        '• Mostrar na tela de bloqueio\n'
+                        '• Permitir atividade em segundo plano\n\n'
+                        'Isso ajuda o alarme a funcionar corretamente.',
+                    buttonText: 'ABRIR CONFIGURAÇÕES',
                     onPressed: _openAppSettings,
-                    icon: Icons.phone_android,
-                    color: const Color(0xFFD32F2F),
+                    icon: Icons.settings,
+                    color: const Color(0xFF1565C0),
                   ),
 
                   const SizedBox(height: 10),
