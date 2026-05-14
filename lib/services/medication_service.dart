@@ -45,7 +45,8 @@ class MedicationService {
         frequency: medication.frequency,
         notes: medication.notes,
         createdAt: medication.createdAt,
-      );
+        lastTaken: medication.lastTaken, // ✅ ADICIONAR ESTA LINHA
+    );
 
       await _storage.saveMedication(medToSave.toMap());
 

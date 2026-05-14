@@ -1,43 +1,21 @@
-import 'package:flutter/foundation.dart' show kIsWeb, debugPrint;
-import 'package:alarm/alarm.dart';
-import 'package:alarm/model/alarm_settings.dart';
-import 'package:alarm/model/volume_settings.dart';
-import 'package:permission_handler/permission_handler.dart';
+import 'package:android_alarm_manager_plus/android_alarm_manager_plus.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:shared_preferences/shared_preferences.dart';
+import 'alarm_callback.dart';
 
 class NotificationService {
-  static final NotificationService _instance =
-      NotificationService._internal();
-
+  static final NotificationService _instance = NotificationService._internal();
   factory NotificationService() => _instance;
-
   NotificationService._internal();
 
   bool _initialized = false;
 
   Future<void> initialize() async {
     if (_initialized) return;
+    if (kIsWeb) { _initialized = true; return; }
 
-    debugPrint('🔔 Inicializando serviço de alarme...');
-
-    if (kIsWeb) {
-      debugPrint('🌐 Web desativado neste serviço.');
-      _initialized = true;
-      return;
-    }
-
-    try {
-      final notificationStatus = await Permission.notification.status;
-
-      if (!notificationStatus.isGranted) {
-        await Permission.notification.request();
-      }
-
-      await Alarm.init();
-      _initialized = true;
-      debugPrint('✅ Serviço de alarme inicializado com sucesso');
-    } catch (e) {
-      debugPrint('❌ Erro ao inicializar serviço de alarme: $e');
-    }
+    await AndroidAlarmManager.initialize();
+    _initialized = true;
   }
 
   Future<void> scheduleMedicationReminder({
@@ -46,84 +24,44 @@ class NotificationService {
     required DateTime scheduledTime,
     String? observation,
   }) async {
-    if (!_initialized) {
-      await initialize();
+    if (!_initialized) await initialize();
+    if (kIsWeb) return;
+
+    final now = DateTime.now();
+    final effectiveTime = scheduledTime.isAfter(now)
+        ? scheduledTime
+        : now.add(const Duration(seconds: 5));
+
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('alarm_name_$id', medicationName);
+    if (observation != null) {
+      await prefs.setString('alarm_note_$id', observation);
     }
 
-    if (kIsWeb) {
-      debugPrint('🌐 Agendamento web desativado.');
-      return;
-    }
-
-    try {
-      debugPrint('⏰ scheduleMedicationReminder CHAMADO para $medicationName');
-      debugPrint('   ID: $id');
-      debugPrint('   Horário original: $scheduledTime');
-      debugPrint('   Agora: ${DateTime.now()}');
-
-      final now = DateTime.now();
-      DateTime effectiveTime = scheduledTime;
-
-      if (!effectiveTime.isAfter(now)) {
-        effectiveTime = now.add(const Duration(seconds: 5));
-        debugPrint('⚠️ Horário no passado ou igual ao atual. Ajustado para: $effectiveTime');
-      }
-
-      final alarmSettings = AlarmSettings(
-        id: id,
-        dateTime: effectiveTime,
-        assetAudioPath: 'assets/alarm.mp3',
-        loopAudio: true,
-        vibrate: true,
-        warningNotificationOnKill: true,
-        androidFullScreenIntent: true,
-        volumeSettings: VolumeSettings.fade(
-          fadeDuration: const Duration(seconds: 3),
-          volumeEnforced: false,
-        ),
-        notificationSettings: NotificationSettings(
-          title: 'Hora do Remédio 💊',
-          body:
-              'Está na hora de tomar $medicationName${observation != null && observation.trim().isNotEmpty ? ': $observation' : ''}',
-          stopButton: 'Parar',
-        ),
-      );
-
-      await Alarm.set(alarmSettings: alarmSettings);
-
-      final alarms = await Alarm.getAlarms();
-      debugPrint('✅ Alarme agendado com sucesso');
-      debugPrint('📌 Alarmes ativos: ${alarms.length}');
-    } catch (e) {
-      debugPrint('❌ Erro ao agendar alarme: $e');
-    }
+    await AndroidAlarmManager.oneShotAt(
+      effectiveTime,
+      id,
+      alarmCallback,
+      exact: true,
+      wakeup: true,
+    );
   }
 
   Future<void> cancelNotification(int id) async {
     if (kIsWeb) return;
+    await AndroidAlarmManager.cancel(id);
 
-    try {
-      await Alarm.stop(id);
-      debugPrint('✅ Alarme #$id cancelado');
-    } catch (e) {
-      debugPrint('❌ Erro ao cancelar alarme #$id: $e');
-    }
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('alarm_name_$id');
+    await prefs.remove('alarm_note_$id');
   }
 
   Future<void> cancelAllNotifications() async {
     if (kIsWeb) return;
-
-    try {
-      await Alarm.stopAll();
-      debugPrint('✅ Todos os alarmes foram cancelados');
-    } catch (e) {
-      debugPrint('❌ Erro ao cancelar todos os alarmes: $e');
-    }
+    // cancelamento individual é feito pelo MedicationService
   }
 
   Future<void> testNotification() async {
-    debugPrint('🧪 Testando alarme em 5 segundos...');
-
     await scheduleMedicationReminder(
       id: DateTime.now().millisecondsSinceEpoch.remainder(2147483647),
       medicationName: 'TESTE',

@@ -1,3 +1,5 @@
+//lib\services\sync_service.dart
+
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -390,10 +392,20 @@ class SyncService extends ChangeNotifier {
   }
 
   Future<void> logoutFromCloud() async {
+    try {
+      // Sincronizar antes de sair para não perder o estado local
+      final userId = await getCloudUserId();
+      if (userId != null) {
+        await syncLocalToCloud(userId);
+      }
+    } catch (e) {
+      print('⚠️ Erro ao sincronizar antes do logout: $e');
+    }
+
     await _firebaseService.signOut();
     await setCloudUserId(null);
     await setSyncEnabled(false);
-    notifyListeners(); // Notificar ouvintes
+    notifyListeners();
   }
 
   Future<void> syncLocalToCloud(String userId) async {

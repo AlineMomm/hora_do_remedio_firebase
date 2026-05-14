@@ -9,14 +9,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.3.5"
-  alarm:
+  android_alarm_manager_plus:
     dependency: "direct main"
     description:
-      name: alarm
-      sha256: f50869fb28d46ce44922340a44a0ad9ee4be298349efeb20bbfd44aeba0c257d
+      name: android_alarm_manager_plus
+      sha256: d243b5abd9e656fafd1d46f39e43196dd60df33aace1b11e04ecf01d6c6046f9
       url: "https://pub.dev"
     source: hosted
-    version: "5.2.1"
+    version: "4.0.8"
   android_intent_plus:
     dependency: "direct main"
     description:
@@ -177,14 +177,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "0.7.12"
-  equatable:
-    dependency: transitive
-    description:
-      name: equatable
-      sha256: "3e0141505477fd8ad55d6eb4e7776d3fe8430be8e497ccb1521370c3f21a3e2b"
-      url: "https://pub.dev"
-    source: hosted
-    version: "2.0.8"
   fake_async:
     dependency: transitive
     description:
@@ -318,14 +310,6 @@ packages:
     description: flutter
     source: sdk
     version: "0.0.0"
-  flutter_fgbg:
-    dependency: transitive
-    description:
-      name: flutter_fgbg
-      sha256: eb6da9b2047372566a6e17b505975fe5bace94af01f6fc825c4b6f81baa6c447
-      url: "https://pub.dev"
-    source: hosted
-    version: "0.7.1"
   flutter_launcher_icons:
     dependency: "direct dev"
     description:
@@ -864,14 +848,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "0.6.0"
-  rxdart:
-    dependency: transitive
-    description:
-      name: rxdart
-      sha256: "5c3004a4a8dbb94bd4bf5412a4def4acdaa12e12f269737a5751369e12d1a962"
-      url: "https://pub.dev"
-    source: hosted
-    version: "0.28.0"
   shared_preferences:
     dependency: "direct main"
     description:

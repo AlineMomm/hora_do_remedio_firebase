@@ -6,9 +6,26 @@ import 'pages/medication_list_page.dart';
 import 'services/settings_service.dart';
 import 'services/notification_service.dart';
 import 'package:hora_do_remedio/services/sync_service.dart';
+import 'package:android_alarm_manager_plus/android_alarm_manager_plus.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await AndroidAlarmManager.initialize();
+
+  //Só inicializa o AlarmManager em Android/mobile
+  if (!kIsWeb) {
+    await AndroidAlarmManager.initialize();
+  }
+  try {
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+    print('✅ Firebase.initializeApp() concluído com sucesso');
+  } catch (e) {
+    print('❌ Erro ao inicializar Firebase: $e');
+    return;
+  }
 
   try {
     await Firebase.initializeApp(
