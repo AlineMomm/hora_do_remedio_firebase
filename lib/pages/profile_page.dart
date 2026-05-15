@@ -1352,42 +1352,44 @@ return PopScope(
                     // Botão de Sair da Conta
                     if (_isCloudUser) ...[
                       Center(
-                        child: Container(
-                          width: 280,
-                          height: 48,
-                          margin: const EdgeInsets.symmetric(vertical: 16),
-                          child: ElevatedButton(
-                            onPressed: _confirmLogout,
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFFB71C1C), // Vermelho mais escuro
-                              foregroundColor: Colors.white,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(30),
+                        child: ConstrainedBox(
+                          constraints: const BoxConstraints(maxWidth: 360),
+                          child: SizedBox(
+                            width: double.infinity,
+                            child: ElevatedButton(
+                              onPressed: _confirmLogout,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFFB71C1C),
+                                foregroundColor: Colors.white,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(30),
+                                ),
+                                elevation: 3,
+                                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
                               ),
-                              elevation: 3,
-                              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-                            ),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                const Icon(Icons.logout),
-                                const SizedBox(width: 8),
-                                Flexible(
-                                  child: Text(
-                                    'SAIR DA CONTA',
-                                    textAlign: TextAlign.center,
-                                    maxLines: 2,
-                                    softWrap: true,
-                                    overflow: TextOverflow.visible,
-                                    style: settings.getTextStyle(
-                                      size: settings.buttonFontSize,
-                                      fontWeight: FontWeight.bold,
-                                      color: Colors.white,
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(Icons.logout),
+                                  const SizedBox(width: 8),
+                                  Flexible(
+                                    child: Text(
+                                      'SAIR DA CONTA',
+                                      textAlign: TextAlign.center,
+                                      maxLines: 2,
+                                      softWrap: true,
+                                      overflow: TextOverflow.visible,
+                                      style: settings.getTextStyle(
+                                        size: settings.buttonFontSize,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.white,
+                                      ),
                                     ),
                                   ),
-                                ),
-                              ],
-                            )
+                                ],
+                              ),
+                            ),
                           ),
                         ),
                       ),
